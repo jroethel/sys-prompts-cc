@@ -1,0 +1,23 @@
+[
+  {
+    "content_sha256": "7ca685c979d522c947ac7aaf65b1a44fd1010c724ab5da286eb120bc38099a45",
+    "identifiers": [
+      0,
+      1
+    ],
+    "normalized": "$INTERP \u00b7 $INTERP"
+  },
+  {
+    "content_sha256": "ec5a01d8bb3ac40222923d09fcd5614dfa490b6a009f0aa8a7ba4fbea7249153",
+    "identifiers": [
+      0,
+      1
+    ],
+    "normalized": "ERROR: Manifest version mismatch. Expected \"$INTERP\", found \"$INTERP\""
+  },
+  {
+    "content_sha256": "e5972581477323b1b4da88aec771c9743b55b2dee0ea261102558d4d368ed704",
+    "identifiers": [],
+    "normalized": "Sets the maximum number of thinking tokens for extended thinking. When max_thinking_tokens is omitted or null, thinking resets to the session default: any mid-session budget override is cleared (back to the spawn-time budget, if one was set), and thinking stays off for sessions that have it disabled. thinking_display optionally sets the thinking display mode for the rest of the session: a value replaces the session display mode, null clears that override so Claude Code's default display handling applies again, and when omitted the display mode from session start (--thinking-display) is kept."
+  }
+]
