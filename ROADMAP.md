@@ -41,4 +41,5 @@ new Opus-generation model, leaving behind a repeatable molt check for every futu
 
 - Domain-tailored SP packs (engineering-focused vs content/design-focused Claude Code).
 - Peer-agents seeded by persona and domain space; jroethel/arscontexta is the candidate seeder, research required.
+- Observability framework and operational backplane for the peer-agents; pointers to evaluate: open-engine, viv (Twitter project/app/company), Jaye's rubric; hangs on the peer-agents item above.
 - Productization of the capability as a service or product offer.
