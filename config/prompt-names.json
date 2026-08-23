@@ -1,0 +1,14 @@
+{
+  "ec5a01d8bb3ac40222923d09fcd5614dfa490b6a009f0aa8a7ba4fbea7249153": {
+    "id": "error-manifest-version-mismatch",
+    "name": "Error: Manifest version mismatch"
+  },
+  "e5972581477323b1b4da88aec771c9743b55b2dee0ea261102558d4d368ed704": {
+    "id": "tool-description-max-thinking-tokens-and-display",
+    "name": "Tool Description: max thinking tokens and thinking display"
+  },
+  "7ca685c979d522c947ac7aaf65b1a44fd1010c724ab5da286eb120bc38099a45": {
+    "id": "ui-interpolated-pair-middle-dot",
+    "name": "UI: interpolated pair joined by middle dot"
+  }
+}
