@@ -1,5 +1,5 @@
 <!--
-generated: 2026-08-23T18:07:17Z
+generated: 2026-08-23T18:51:19Z
 source of truth: GitHub issues
 regenerate: scripts/gen-mirrors.sh .
 DO NOT EDIT
@@ -16,7 +16,7 @@ DO NOT EDIT
 | 5 | Landscape: harness engineering discourse and the installs-plus-retainers market | research | closed |  |
 | 6 | First domino: fold in Jeremy's recording | grilling | closed |  |
 | 7 | Metrics and benchmark tasks: what better means here | grilling | closed | 4 |
-| 8 | Pilot skeleton: just recipes plus herdr compare loop | prototype | open | 2,7 |
+| 8 | Pilot skeleton: just recipes plus herdr compare loop | prototype | closed | 2,7 |
 | 9 | Baseline hygiene: pin a verified-stock binary before any live A/B | task | closed |  |
 | 10 | Upgrade and drift policy: what happens to SP packs when the pinned version moves | grilling | open |  |
 | 11 | Pin the target: side-by-side install of current Claude Code plus its prompt corpus | task | closed |  |
