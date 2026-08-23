@@ -64,3 +64,22 @@ BATCH/DEFAULT entries are the review obligation: accept or reverse at the end-of
 - Rationale: measured on the one real compacted transcript (preamble at record 4,
   0 assistant turns prior).
 - Reversal: n/a - recorded for the downstream review and the RUNBOOK reader.
+
+## 10. BATCH - final-wave advisory loop-review run and findings slipped
+- Decision: ran `/loop-review 9cd5086` after wave-3 advancement (advisory, non-blocking).
+  Spec findings slipped to the downstream review step: (1) `--validate-log` never
+  cross-checks `variant_won` against `order`+`rating`, so a mis-entered row can flip
+  the verdict silently; (2) tic-scan re-implements the usage fail-loud outside its
+  interface. Standards judgement calls recorded: drifted JSONL readers (two with bare
+  tracebacks), duplicated text extraction, TOKEN_KEYS/USAGE_KEYS naming,
+  median() vs statistics.median.
+- Rationale: the per-unit checks already gated correctness; the review is the
+  plan's declared terminal step.
+- Reversal: n/a for the run; each finding is a small follow-up fix if accepted.
+
+## 11. DEFAULT - integration branch merged to main
+- Decision: fast-forward merged `loop/sp-metrics-instrument` into `main` at run end.
+- Rationale: the source plan's tasks committed to main directly; the gate-commit
+  deviation strands the deliverables unless the branch lands. Main had no new
+  commits, so the merge is a pure fast-forward of already-validated commits.
+- Reversal: cheap - `git reset --hard 9cd5086` on main (or revert the range).
