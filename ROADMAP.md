@@ -23,7 +23,7 @@ new Opus-generation model, leaving behind a repeatable molt check for every futu
 | 4   | Measurement methodology                     | research  | closed | -            |
 | 5   | Landscape: discourse and market             | research  | closed | -            |
 | 6   | First domino (Jeremy's recording)           | grilling  | closed | -            |
-| 7   | Metrics and benchmark tasks                 | grilling  | open   | #4 (closed)  |
+| 7   | Metrics and benchmark tasks                 | grilling  | closed | #4 (closed)  |
 | 8   | Pilot skeleton: just recipes plus herdr     | prototype | open   | #2, #7       |
 | 9   | Baseline hygiene: pin verified binaries     | task      | open   | -            |
 | 10  | Upgrade and drift policy (the molt core)    | grilling  | open   | -            |
@@ -32,10 +32,9 @@ new Opus-generation model, leaving behind a repeatable molt check for every futu
 ### Path forward
 
 1. AFK session: #11 installs current Claude Code side by side and extracts its normalized prompt corpus; #9 records the stock 2.1.204 hash and builds a patched variant copy; both are parallel-safe and never touch the live install.
-2. /loop-brainstorm sitting for #7: pick the real benchmark tasks, the satisfaction rubric, and run counts; this unblocks #8.
-3. /loop-brainstorm sitting for #10: decide the molt policy, meaning what re-runs on a version bump, what auto-realigns, and what demands review.
-4. Prototype session for #8: a throwaway justfile plus herdr compare-loop skeleton to react to.
-5. Frontier empty: hand the destination to /loop-plan.
+2. /loop-brainstorm sitting for #10: decide the molt policy, meaning what re-runs on a version bump, what auto-realigns, and what demands review.
+3. Prototype session for #8: a throwaway justfile plus herdr compare-loop skeleton to react to; #7's decisions are recorded in docs/briefs/2026-08-22-sp-metrics-benchmarks-brief.md.
+4. Frontier empty: hand the destination to /loop-plan.
 
 ### Beyond the frontier (fog, in scope but not yet ticketed)
 
