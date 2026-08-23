@@ -125,6 +125,13 @@ def validate_log(rows, path="<log>") -> str | None:
             return f"{path}: row {i}: order must be one of {LOG_ORDER}"
         if row["rating"] not in LOG_RATING:
             return f"{path}: row {i}: rating must be one of {LOG_RATING}"
+        # variant_won is derived from order + rating; a contradictory row would
+        # silently flip the verdict, so it fails validation loud here.
+        expected = None if row["rating"] == "tie" else (
+            (row["rating"] == "B") == (row["order"] == "A=stock"))
+        if row["variant_won"] is not expected:
+            return (f"{path}: row {i}: variant_won={row['variant_won']} contradicts "
+                    f"order={row['order']} rating={row['rating']} (expected {expected})")
     if len(rows) != PAIRS_REQUIRED:
         return f"{path}: expected {PAIRS_REQUIRED} rows, found {len(rows)}"
     return None
@@ -188,6 +195,19 @@ def boundary_selftest():
         assert False, "duplicate variant row should have raised"
     except ValueError as e:
         assert "join error" in str(e), e
+    # variant_won must agree with order + rating in all four orientations plus tie
+    def lrow(i, order, rating, won):
+        return {"task_id": f"t{i}", "order": order, "rating": rating,
+                "variant_won": won, "reason": "x", "rated_at": "2026-08-23"}
+    rows = ([lrow(0, "A=stock", "A", False), lrow(1, "A=stock", "B", True),
+             lrow(2, "A=variant", "A", True), lrow(3, "A=variant", "B", False),
+             lrow(4, "A=stock", "tie", None)]
+            + [lrow(i, "A=stock", "A", False) for i in range(5, 12)])
+    assert validate_log(rows) is None, validate_log(rows)
+    bad = rows[:3] + [dict(rows[3], variant_won=True)] + rows[4:]
+    assert "contradicts" in validate_log(bad), validate_log(bad)
+    tiebad = rows[:4] + [dict(rows[4], variant_won=True)] + rows[5:]
+    assert "contradicts" in validate_log(tiebad), validate_log(tiebad)
     print("boundary: ok")
 
 
