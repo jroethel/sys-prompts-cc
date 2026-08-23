@@ -55,3 +55,10 @@ Gate journal, chronological. BATCH and DEFAULT entries are the review obligation
 - Guard result: five must-not-touch files byte-identical across a bracketed full extraction run; observed `~/.claude.json` drift root-caused to the live Claude Code session's own state flushes, not the pipeline.
 - BATCH (skip noted): the final-wave advisory /loop-review was not run - it belongs to the wave machinery this run skipped at the Step 0 ONE-AGENT lean (journal entry 1); per-unit executed checks plus this gate's independent re-runs carried validation. Reversal: run `/loop-review f230e0b` from main at any time.
 - Provenance dir (worker open question 1) committed at the gate with this journal, per the plan's global constraint; no task owned it.
+
+## 10. ASK - Task 5 fired by the human (run closed)
+
+- Decision: human fired the staged gh comment (issuecomment-5384490291); orchestrator ran the acceptance grep, comment present with the verified sha. All 5 tasks done; chain complete.
+- Rationale: plan-defined human checkpoint, outbound to a shared system.
+- Reversal: n/a - resolved live.
+- Left open by choice: local main unpushed (4+ commits ahead of origin), advisory `/loop-review f230e0b` available on demand.
