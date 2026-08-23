@@ -2,7 +2,7 @@
 
 This is the human procedure for firing pass 1 and pass 2.
 Every step names its script by path; nothing here is automated end to end.
-Firing the 12 paired runs per pass is deferred to the #8 herdr skeleton; when it exists it replaces only step 3, never the checkpoints around it.
+Firing the 12 paired runs per pass runs through the #8 herdr skeleton (`pilot/HERDR-LAYOUT.md`, recipe `just pilot-pair`); it replaces only step 3, never the checkpoints around it.
 
 Zero-spend proof before any of this: `just pilot-dryrun` composes the whole instrument over two real historical transcripts.
 
@@ -61,8 +61,9 @@ done > /tmp/sp-passN-state-before.txt
 ## Stage 1: fire the 12 paired runs
 
 One pair per task packet under `pilot/tasks/<id>/`, input snapshot reset per pane so both panes start byte-identical.
-Firing mechanics are the #8 herdr skeleton's; until it exists this step is manual.
-Each pane records its own session JSONL; after a pair completes, copy the two transcripts into `pilot/runs/passN/<task_id>/` and extract metrics immediately, one line each:
+Firing mechanics are the #8 herdr skeleton's: `FIRE=1 just pilot-pair passN <task_id> <seed>` splits the two panes, replays the turns, and lands the four capture files itself (`pilot/HERDR-LAYOUT.md`).
+Preview any pair with zero spend first via `just pilot-pair passN <task_id> <seed>` (`--check`).
+The skeleton captures each pane's session JSONL into `pilot/runs/passN/<task_id>/` and extracts metrics immediately, one line each; done by hand it is:
 
 ```
 python3 scripts/pilot-metrics.py pilot/runs/passN/<task_id>/stock.jsonl --task-id <task_id> \
