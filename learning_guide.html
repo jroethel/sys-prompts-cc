@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learning Guide - sys-prompts-cc</title>
+<style>
+:root {
+  --ink: #2b2b2b; --muted: #6b6b60; --accent: #4a6b57;
+  --bg: #faf9f5; --card: #ffffff; --line: #e4e1d7;
+}
+body {
+  font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  color: var(--ink); background: var(--bg);
+  max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem;
+  line-height: 1.6;
+}
+h1 { font-size: 1.7rem; margin-bottom: 0.2rem; }
+.subtitle { color: var(--muted); margin-top: 0; }
+h2 {
+  font-size: 1.15rem; color: var(--accent);
+  border-bottom: 1px solid var(--line); padding-bottom: 0.3rem; margin-top: 2.5rem;
+}
+section.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  padding: 0.2rem 1.2rem 0.8rem; margin: 1rem 0;
+}
+dt { font-weight: 600; margin-top: 0.9rem; }
+dd { margin: 0.15rem 0 0 0; color: #444; }
+.why { color: var(--muted); font-size: 0.92rem; }
+code { background: #f0eee6; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }
+table { border-collapse: collapse; width: 100%; margin: 0.8rem 0; font-size: 0.95rem; }
+th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+footer { margin-top: 3rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+pre.diagram { background: #f0eee6; border: 1px solid var(--line); border-radius: 6px; padding: 0.8rem 1rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.35; }
+</style>
+</head>
+<body>
+<h1>Learning Guide</h1>
+<p class="subtitle">sys-prompts-cc - wayfinder #10 drift-policy brainstorm session, 2026-08-23</p>
+
+<h2>Project summary and scope</h2>
+<section class="card">
+<dl>
+<dt>This guide captures the drift-policy vocabulary and the retro-check gap shaped during the #10 sitting.</dt>
+<dd>Wayfinder #10 decides what happens to SP override packs when the pinned Claude Code version moves: what re-runs, what auto-realigns, what demands review.</dd>
+<dd class="why">Surfaced 2026-08-23 in the /loop-brainstorm sitting for issue #10; Jeremy asked for the terminology and diagram to be captured here.</dd>
+</dl>
+</section>
+
+<h2>Terminology (defined as synonym pairs)</h2>
+<section class="card">
+<dl>
+<dt>Live install = the daily driver.</dt>
+<dd>The binary <code>~/.local/bin/claude</code> points at. Its patch-state is unstable (#9 watched it flip stock, then Jeremy's --restore, then re-lobotomized), so drift policy never reads it. Molt inputs are committed corpora plus external sources only.</dd>
+<dt>Pinned version = frozen snapshot.</dt>
+<dd>A version whose prompt corpus is committed under <code>corpora/&lt;V&gt;/</code> with a provenance record in <code>corpora-provenance/&lt;V&gt;.json</code>. Two exist: 2.1.204 (baseline = the old pin) and 2.1.241 (target = the new pin, the version being upgraded toward).</dd>
+<dt>Corpus = prompt snapshot.</dt>
+<dd>The normalized per-prompt markdown extracted from one version's binary, keyed by tweakcc extractor <code>id</code>.</dd>
+<dt>Skrabe published JSON = external second opinion.</dt>
+<dd>Someone else ran the same extractor and published <code>prompts-&lt;V&gt;.json</code>; a source of record to check the local copy against.</dd>
+<dt>Rung = which source the pin came from.</dt>
+<dd>Rung 1 cache (= reuse what was saved before), rung 2 skrabe (= adopt the published second opinion), rung 3 local extraction (= run the extractor yourself; no second opinion exists yet).</dd>
+<dt>Retro-check = the delayed second opinion.</dt>
+<dd>Once skrabe publishes a version that was pinned at rung 3, compare their JSON against the frozen local corpus. A mismatch flags for review; it never halts the run.</dd>
+</dl>
+</section>
+
+<h2>The retro-check gap (diagram Jeremy found helpful)</h2>
+<section class="card">
+<pre class="diagram">
+        how a version gets pinned                     where the hole is
+        -------------------------                     -----------------
+
+ npm -&gt; binary for 2.1.241
+              |
+              v
+    acquire-corpus source ladder
+  +----------------------------------+
+  | rung 1: local cache    (reuse)   |
+  | rung 2: skrabe JSON  (external)  | &lt;-- the second opinion, when it exists
+  | rung 3: extract ourselves        |
+  +----------------------------------+
+              |
+              v
+   corpora/2.1.241/  (committed, frozen)
+
+
+ timeline of the two pins:
+
+   2.1.204  pinned at rung 2 --&gt; validated against skrabe at pin time.  Done, closed.
+   2.1.241  pinned at rung 3 --&gt; skrabe was still on 2.1.239 that day.  No check possible.
+                |
+                |        ...weeks pass, skrabe catches up...
+                v
+        skrabe publishes prompts-2.1.241.json
+                |
+                v
+        nothing ever compares that to corpora/2.1.241   &lt;-- the hole #10 closes
+</pre>
+</section>
+
+<h2>Key decisions register (2026-08-23 sitting, so far)</h2>
+<section class="card">
+<table>
+<tr><th>Decision</th><th>Alternatives considered</th><th>Why</th></tr>
+<tr><td>Drift policy governs whatever pack a committed pointer designates, keyed on tweakcc <code>id</code></td>
+    <td>Own future packs only; also governing Piebald; "applied" pack read from live state</td>
+    <td>Pack-agnostic contract covers the lobotomized pack today and Jeremy's tailored packs later; Piebald stays a research reference. "Designated" not "applied": knowing what is applied would mean reading live install state, which the #9 constraint forbids (Rubix finding 9).</td></tr>
+<tr><td>Molt check runs at the end of every <code>just pin-target</code></td>
+    <td>Separate on-demand recipe; checklist only</td>
+    <td>Cannot be forgotten, adds no hooks or daemons, and stays re-runnable from committed corpora.</td></tr>
+<tr><td>Review line is strict hash: any rewritten or suppressed override whose stock underlay changed at all demands review</td>
+    <td>Ratio threshold (&gt;= 0.97 auto-realigns); nothing silent</td>
+    <td>#3 showed normalization already absorbs representation noise, so a ratio threshold would only swallow real wording changes.</td></tr>
+<tr><td>Review-class findings land in a committed molt report plus an auto-opened GitHub issue</td>
+    <td>Report only; issue only</td>
+    <td>Matches GitHub-as-source-of-truth and makes an unreviewed molt visible in the tracker.</td></tr>
+<tr><td>Provenance mismatches flag and continue; only new-corpus acquisition keeps hard-fail checks</td>
+    <td>Hard-fail everything</td>
+    <td>A late skrabe publication with a trivial diff should not block unrelated upgrades.</td></tr>
+<tr><td>Retro-check covers any externally-unverified pin (cache or local extraction with no skrabe counterpart at pin time), firing at molt-run start as an ask, not an auto</td>
+    <td>Fully automatic sweep; manual recipe; never; rung-3 pins only</td>
+    <td>Jeremy: verifying robustness earns a yes; racing toward a newer version earns a skip. The prompt keeps the choice visible without forcing the cost. Scope widened from rung-3-only after the Rubix review verified both committed pins are rung cache, which the original scope would not have covered (finding 3).</td></tr>
+<tr><td>#10's deliverable includes executing the first real molt (2.1.204 to 2.1.241, lobotomized pack)</td>
+    <td>Policy only, execution as its own ticket</td>
+    <td>A policy that has never classified a real pack rests on no executed check.</td></tr>
+</table>
+</section>
+
+<h2>User preferences (carry into future sessions)</h2>
+<section class="card">
+<dl>
+<dt>When a design question involves several similar-sounding states, present an ASCII diagram in session chat plus terminology defined as synonym pairs before asking the question.</dt>
+<dd>Jeremy answered the retro-check question only after the diagram and synonym-pair glossary; he called the diagram helpful and asked for it to be captured here.</dd>
+<dd class="why">Surfaced 2026-08-23 when the round-2 retro-check question landed unclear on first ask.</dd>
+<dt>Automatic sweeps that add cost to a run he triggers should be asks, not autos, when his intent forks the answer.</dt>
+<dd>Verify-and-harden intent means run the sweep; move-fast-to-new-version intent means skip it. Design prompts around the intent fork instead of picking one default silently.</dd>
+</dl>
+</section>
+
+<footer>Generated from the 2026-08-23 /loop-brainstorm sitting for wayfinder #10 (Claude Fable 5 + Jeremy). Updated same day after the single Rubix lens A review (harness-engineer seat): pack-scope and retro-check register rows revised to the post-review policy. Companion docs live in docs/research/diff-surface.md, docs/briefs/, and the wayfinder map at GitHub issue #1.</footer>
+</body>
+</html>
