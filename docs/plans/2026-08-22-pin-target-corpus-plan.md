@@ -14,7 +14,8 @@
 ## Global constraints
 
 - Target version this ticket pins: `2.1.241` (npm latest as of 2026-08-22); the pipeline reads V from `npm view @anthropic-ai/claude-code version` by default and accepts an explicit version argument. Any non-interactive or scheduled run must pass V explicitly.
-- Baseline of record: `2.1.204`, expected prompt count `1537`. This is the live-install version today and this ticket's other diff side; it is a documented baseline value, not a forever-constant (see the symlink invariance rule).
+- Baseline of record: `2.1.204`, expected record count `1537`, expected normalized file count `1426`
+  (58 duplicate ids: 57 identical-content, deduped; 1 id with 2 distinct contents, content-suffixed). This is the live-install version today and this ticket's other diff side; it is a documented baseline value, not a forever-constant (see the symlink invariance rule).
 - Symlink invariance: snapshot `readlink ~/.local/bin/claude` at the start of any run and assert it is unchanged at the end. Never write the symlink. For this ticket the snapshot is `~/.local/share/claude/versions/2.1.204`, which satisfies criterion 1.
 - Never launch any binary beyond `--version`; test launches belong to ticket #8.
 - Never replace or overwrite an existing binary on disk (this protects the live 2.1.204, which may be patched); acquisition only ever downloads a version that is absent.
@@ -76,12 +77,14 @@ Depends on: none
 **Interfaces:**
 - Consumes: a `prompts-<version>.json` with top-level `{version, prompts:[...]}`, each prompt a record with
   `id` (string), `pieces` (list of string), `identifiers` (list of string).
-- Produces: `<out-dir>/<id>.md` per prompt containing the normalized prose; prints the file count to stdout
-  as the last line in the exact form `count: <N>`.
+- Produces: `<out-dir>/<id>.md` per prompt id; identical-content duplicates of an id dedupe to one file,
+  and an id with multiple DISTINCT normalized contents writes `<out-dir>/<id>__<sha8>.md` per variant
+  (sha8 = first 8 hex of the content SHA-256, so filenames are deterministic and order-independent).
+  Prints the file count to stdout as the last line in the exact form `count: <N>`.
 - Exports (importable by Task 3 for hashing): `normalize(s)` and `reconstruct(rec)`; the content SHA used by
   the name map is `sha256(normalize(reconstruct(rec)))`.
 
-**Acceptance check:** `python3 scripts/normalize-corpus.py --selftest && python3 scripts/normalize-corpus.py ~/.tweakcc/prompt-data-cache/prompts-2.1.204.json /tmp/c204 && test "$(ls /tmp/c204 | wc -l | tr -d ' ')" = 1537` exits 0 `[executed-check]`
+**Acceptance check:** `python3 scripts/normalize-corpus.py --selftest && python3 scripts/normalize-corpus.py ~/.tweakcc/prompt-data-cache/prompts-2.1.204.json /tmp/c204 && test "$(ls /tmp/c204 | wc -l | tr -d ' ')" = 1426` exits 0 `[executed-check]`
 
 - [ ] Step 1: Write `scripts/normalize-corpus.py`. Implementation code below IS the spec - the normalization is load-bearing per `docs/research/diff-surface.md`, and the sentinel must be brace-free so the collapse fixpoints on nested interpolations:
 
@@ -145,12 +148,20 @@ Depends on: none
           f.unlink()
       data = json.loads(Path(in_json).read_text(encoding='utf-8'))
       prompts = data['prompts'] if isinstance(data, dict) else data
-      n = 0
+      by_id = {}                              # id -> {content_sha: normalized_text}
       for rec in prompts:
           pid = str(rec['id'])
           assert SAFE_ID.match(pid), f'unsafe id: {pid!r}'
-          (out_dir / f'{pid}.md').write_text(normalize(reconstruct(rec)), encoding='utf-8')
-          n += 1
+          by_id.setdefault(pid, {})[content_sha(rec)] = normalize(reconstruct(rec))
+      n = 0
+      for pid, variants in by_id.items():
+          if len(variants) == 1:              # unique content (incl. identical-copy dups): plain name
+              (out_dir / f'{pid}.md').write_text(next(iter(variants.values())), encoding='utf-8')
+              n += 1
+          else:                               # id collision with distinct contents: content-suffix
+              for sha, text in variants.items():
+                  (out_dir / f'{pid}__{sha[:8]}.md').write_text(text, encoding='utf-8')
+                  n += 1
       print(f'count: {n}')
 
   if __name__ == '__main__':
@@ -158,7 +169,7 @@ Depends on: none
   ```
 
 - [ ] Step 2: Run `python3 scripts/normalize-corpus.py --selftest`; expect `selftest: ok`. `[executed-check]`
-- [ ] Step 3: Run the acceptance check command above; expect exit 0 (1537 files). `[executed-check]`
+- [ ] Step 3: Run the acceptance check command above; expect exit 0 (1426 files from 1537 records). `[executed-check]`
 - [ ] Step 4: Determinism - normalize into `/tmp/c204b`, then `diff -rq /tmp/c204 /tmp/c204b`; expect no output.
 - [ ] Step 5: Commit - `git add scripts/normalize-corpus.py && git commit -m "Add prompt-corpus normalizer"`
 
@@ -300,7 +311,7 @@ Depends on: Task 1, Task 2, Task 3
       echo "pinned: $V sha256=$SHA prompts=$N"
   ```
 
-- [ ] Step 3: Run `just pin-target 2.1.204`; expect `corpora/2.1.204/` with 1537 files, `corpora-provenance/2.1.204.json`, and a `pinned:` line.
+- [ ] Step 3: Run `just pin-target 2.1.204`; expect `corpora/2.1.204/` with 1426 files, `corpora-provenance/2.1.204.json`, and a `pinned:` line.
 - [ ] Step 4: Run `just pin-target 2.1.241` (resume after naming if it exits 3); expect `corpora/2.1.241/` populated, provenance written, and a `pinned:` line.
 - [ ] Step 5: Run `diff -rq corpora/2.1.204 corpora/2.1.241`; expect it to run and report content and presence differences (exit 0 or 1, never a usage error). `[executed-check]`
 - [ ] Step 6: Confirm gitignore - `git status --porcelain corpora`; expect no output, and `git status --porcelain corpora-provenance` shows the provenance files as tracked/untracked (not ignored). `[executed-check]`
@@ -316,11 +327,11 @@ Depends on: Task 4
 - None (produces a GitHub comment; no repo files change beyond the provenance already committed in Task 4).
 
 **Interfaces:**
-- Consumes: the `pinned:` line from Task 4, the 2.1.204 count (1537), and both `corpora-provenance/<V>.json` files.
+- Consumes: the `pinned:` line from Task 4, the 2.1.204 counts (1537 records, 1426 files), and both `corpora-provenance/<V>.json` files.
 
 **Acceptance check:** after the user fires the staged command, `gh issue view 11 --comments | grep -F "sha256 <hex>"` returns the comment `[executed-check]`
 
-- [ ] Step 1: Assemble the comment body: V, the binary SHA-256 and its verify state, the 2.1.204 count (1537) and V count, and each corpus's resolved rung plus source/tool SHAs from provenance.
+- [ ] Step 1: Assemble the comment body: V, the binary SHA-256 and its verify state, the 2.1.204 counts (1537 records, 1426 files) and V counts, and each corpus's resolved rung plus source/tool SHAs from provenance.
 - [ ] Step 2: Stage the exact command for the user to fire (human checkpoint - outbound to a shared system):
   `gh issue comment 11 --body "Pinned target <V>. binary sha256 <hex> (<verified|unverified>). corpora: 2.1.204=1537 (rung cache), <V>=<N> (rung local, tweakcc-fixed <sha>). provenance committed under corpora-provenance/."`
 - [ ] Step 3: After the user runs it, verify with `gh issue view 11 --comments | tail -20`; expect the comment present. `[executed-check]`
