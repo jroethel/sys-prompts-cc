@@ -27,7 +27,7 @@ new Opus-generation model, leaving behind a repeatable molt check for every futu
 | 8   | Pilot skeleton: just recipes plus herdr     | prototype | open   | #2, #7       |
 | 9   | Baseline hygiene: pin verified binaries     | task      | open   | -            |
 | 10  | Upgrade and drift policy (the molt core)    | grilling  | open   | -            |
-| 11  | Pin the target: current CC plus its corpus  | task      | open   | -            |
+| 11  | Pin the target: current CC plus its corpus  | task      | closed | -            |
 
 ### Path forward
 
