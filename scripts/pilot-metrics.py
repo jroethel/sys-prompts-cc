@@ -13,13 +13,18 @@ CONTINUATION = "This session is being continued from a previous conversation"
 
 
 def is_compaction(rec: dict) -> bool:
-    """True iff rec is a user turn whose first text block carries the
-    auto-compaction continuation preamble. Disk-checked: the JSONL carries no
-    dedicated compaction field, so this preamble is the only real signal."""
+    """True iff rec is a user turn carrying the auto-compaction continuation
+    preamble. Two real shapes on disk: message.content as a plain string (the
+    genuine compacted continuation), or as a list whose first text block
+    carries it. tool_result blocks and assistant records never match.
+    Disk-checked: the JSONL carries no dedicated compaction field, so this
+    preamble is the only real signal."""
     if rec.get("type") != "user":
         return False
-    blocks = (rec.get("message") or {}).get("content") or []
-    for b in blocks:
+    content = (rec.get("message") or {}).get("content")
+    if isinstance(content, str):
+        return CONTINUATION in content
+    for b in content or []:
         if isinstance(b, dict) and b.get("type") == "text":
             return CONTINUATION in (b.get("text") or "")
     return False
@@ -81,6 +86,14 @@ def selftest():
     assert d["errors"] == 1, d
     assert d["task_id"] is None, d
     assert extract(recs, task_id="t03")["task_id"] == "t03", "task_id stamps for the verdict join"
+    # plain-string user content: the real auto-compaction shape
+    recs2 = recs[:3] + [{"type": "user", "message": {"content":
+        "This session is being continued from a previous conversation ..."}}]
+    assert extract(recs2)["compaction_turn"] == 2, "plain-string preamble counts"
+    # quoted preamble inside a tool_result still does not count
+    recs3 = recs[:3] + [{"type": "user", "message": {"content": [{"type": "tool_result",
+        "content": "This session is being continued from a previous conversation ..."}]}}]
+    assert extract(recs3)["compaction_turn"] is None, "quoted preamble in tool_result ignored"
     bad = [{"type": "assistant", "message": {"content": [], "usage": {"input_tokens": 1}}}]
     try:
         extract(bad); assert False, "should have raised"
