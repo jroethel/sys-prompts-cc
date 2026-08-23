@@ -1,5 +1,5 @@
 <!--
-generated: 2026-08-23T18:51:19Z
+generated: 2026-08-23T21:38:24Z
 source of truth: GitHub issues
 regenerate: scripts/gen-mirrors.sh .
 DO NOT EDIT

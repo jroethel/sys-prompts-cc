@@ -1,5 +1,5 @@
 <!--
-generated: 2026-08-23T18:51:19Z
+generated: 2026-08-23T21:38:24Z
 source of truth: GitHub issues
 regenerate: scripts/gen-mirrors.sh .
 DO NOT EDIT
@@ -8,6 +8,7 @@ DO NOT EDIT
 
 | # | title | labels | updated |
 |---|---|---|---|
+| 17 | Piebald fidelity re-run on version bumps as a research telemetry stream | idea | 2026-08-23T21:38:20Z |
 | 15 | Full-paranoia install isolation via a separate macOS user or container | idea | 2026-08-23T03:30:30Z |
 | 14 | Second human rater to break blinding collapse | idea | 2026-08-23T03:30:28Z |
 | 13 | Fragment regression harness on promptfoo for isolated SP fragments and tool descriptions | idea | 2026-08-23T03:30:27Z |
