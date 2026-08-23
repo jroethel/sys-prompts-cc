@@ -15,3 +15,16 @@ pin-target version="":
     python3 scripts/normalize-corpus.py "$J" "corpora/$V"
     [ "$(readlink "$HOME/.local/bin/claude")" = "$LINK_BEFORE" ] || { echo "SYMLINK MOVED" >&2; exit 1; }
     echo "pinned: $V sha256=$SHA prompts=$N"
+
+# Run every pilot instrument self-test plus the isolation harness (zero spend).
+pilot-selftest:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for s in metrics tic-scan completion-scan blind mine-tasks verdict; do
+        python3 scripts/pilot-$s.py --selftest
+    done
+    bash scripts/pilot-isolation-check.sh
+
+# Prove the instrument composes end to end over two real historical transcripts (zero spend).
+pilot-dryrun:
+    bash scripts/pilot-dryrun.sh

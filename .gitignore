@@ -1,2 +1,6 @@
 docs/chain-state.md
 corpora/
+pilot/**/*.jsonl
+pilot/**/key.sealed.json
+pilot/runs/
+pilot/tasks/
