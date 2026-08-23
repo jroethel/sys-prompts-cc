@@ -1,5 +1,5 @@
 <!--
-generated: 2026-08-23T04:08:02Z
+generated: 2026-08-23T18:07:17Z
 source of truth: GitHub issues
 regenerate: scripts/gen-mirrors.sh .
 DO NOT EDIT
@@ -17,6 +17,6 @@ DO NOT EDIT
 | 6 | First domino: fold in Jeremy's recording | grilling | closed |  |
 | 7 | Metrics and benchmark tasks: what better means here | grilling | closed | 4 |
 | 8 | Pilot skeleton: just recipes plus herdr compare loop | prototype | open | 2,7 |
-| 9 | Baseline hygiene: pin a verified-stock binary before any live A/B | task | open |  |
+| 9 | Baseline hygiene: pin a verified-stock binary before any live A/B | task | closed |  |
 | 10 | Upgrade and drift policy: what happens to SP packs when the pinned version moves | grilling | open |  |
-| 11 | Pin the target: side-by-side install of current Claude Code plus its prompt corpus | task | open |  |
+| 11 | Pin the target: side-by-side install of current Claude Code plus its prompt corpus | task | closed |  |
