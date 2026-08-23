@@ -1,0 +1,6 @@
+# pack-identifying strings that would reveal which pane is the variant.
+# Specific tells only - never bare common words like "lean"/"stock".
+lobotomized
+lobotomized-claude-code
+system-prompts-opus-4-8
+fixing-smartass-opus-5
