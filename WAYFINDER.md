@@ -1,5 +1,5 @@
 <!--
-generated: 2026-08-23T21:38:24Z
+generated: 2026-08-24T01:48:04Z
 source of truth: GitHub issues
 regenerate: scripts/gen-mirrors.sh .
 DO NOT EDIT
@@ -18,5 +18,5 @@ DO NOT EDIT
 | 7 | Metrics and benchmark tasks: what better means here | grilling | closed | 4 |
 | 8 | Pilot skeleton: just recipes plus herdr compare loop | prototype | closed | 2,7 |
 | 9 | Baseline hygiene: pin a verified-stock binary before any live A/B | task | closed |  |
-| 10 | Upgrade and drift policy: what happens to SP packs when the pinned version moves | grilling | open |  |
+| 10 | Upgrade and drift policy: what happens to SP packs when the pinned version moves | grilling | closed |  |
 | 11 | Pin the target: side-by-side install of current Claude Code plus its prompt corpus | task | closed |  |
