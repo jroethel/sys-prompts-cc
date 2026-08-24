@@ -14,6 +14,7 @@ TWEAKCC="$HOME/repos/tweakcc-fixed"
 SKRABE_URL="https://raw.githubusercontent.com/skrabe/tweakcc-fixed/refs/heads/main/data/prompts/prompts-$V.json"
 
 RUNG="" SOURCE_URL="" SKRABE_SHA="" TWEAKCC_SHA="" EXTRACTOR_VERSION=""
+EXTRACTOR_SOURCE="" EXTERNALLY_VERIFIED=""
 
 count_prompts() {
     python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(len(d["prompts"] if isinstance(d,dict) else d))' "$1"
@@ -23,7 +24,8 @@ finish() {  # provenance + cache + count line
     local n; n="$(count_prompts "$OUT")" || exit 1
     mkdir -p "$REPO_DIR/corpora-provenance" "$(dirname "$CACHE")"
     RUNG="$RUNG" SOURCE_URL="$SOURCE_URL" SKRABE_SHA="$SKRABE_SHA" TWEAKCC_SHA="$TWEAKCC_SHA" \
-    EXTRACTOR_VERSION="$EXTRACTOR_VERSION" V="$V" N="$n" \
+    EXTRACTOR_VERSION="$EXTRACTOR_VERSION" EXTRACTOR_SOURCE="$EXTRACTOR_SOURCE" \
+    EXTERNALLY_VERIFIED="$EXTERNALLY_VERIFIED" V="$V" N="$n" \
     python3 - > "$REPO_DIR/corpora-provenance/$V.json" <<'PY'
 import json, os, datetime
 print(json.dumps({k: v for k, v in {
@@ -33,6 +35,9 @@ print(json.dumps({k: v for k, v in {
     'skrabe_git_sha': os.environ['SKRABE_SHA'],
     'tweakcc_fixed_git_sha': os.environ['TWEAKCC_SHA'],
     'extractor_cc_version': os.environ['EXTRACTOR_VERSION'],
+    'extractor_source': os.environ['EXTRACTOR_SOURCE'],
+    # 'true' -> JSON true; '' pruned by the v != '' filter (missing = unrecorded).
+    'externally_verified': True if os.environ['EXTERNALLY_VERIFIED'] == 'true' else '',
     'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
     'prompt_count': int(os.environ['N']),
 }.items() if v != ''}, indent=2))
@@ -50,9 +55,10 @@ for SRC in "$CACHE" "$TWEAKCC/data/prompts/prompts-$V.json"; do
             PUB_SHA="$(curl -fsSL "$SKRABE_URL" | shasum -a 256 | cut -d' ' -f1)" || { echo "skrabe fetch for 2.1.204 stock check failed" >&2; exit 1; }
             LOC_SHA="$(shasum -a 256 "$SRC" | cut -d' ' -f1)"
             [ "$PUB_SHA" = "$LOC_SHA" ] || { echo "2.1.204 cache differs from skrabe published ($LOC_SHA != $PUB_SHA)" >&2; exit 1; }
+            EXTERNALLY_VERIFIED=true
         fi
         cp "$SRC" "$OUT"
-        RUNG=cache SOURCE_URL="$SRC"
+        RUNG=cache SOURCE_URL="$SRC" EXTRACTOR_SOURCE=cache
         finish
     fi
 done
@@ -60,7 +66,7 @@ done
 # Rung 2: skrabe published JSON
 if curl -fsSL "$SKRABE_URL" -o "$OUT.tmp"; then
     mv "$OUT.tmp" "$OUT"
-    RUNG=skrabe SOURCE_URL="$SKRABE_URL"
+    RUNG=skrabe SOURCE_URL="$SKRABE_URL" EXTRACTOR_SOURCE=skrabe EXTERNALLY_VERIFIED=true
     SKRABE_SHA="$(git -C "$TWEAKCC" ls-remote origin HEAD 2>/dev/null | cut -f1)" || true
     finish
 fi
