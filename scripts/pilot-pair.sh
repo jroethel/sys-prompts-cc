@@ -136,8 +136,17 @@ PY
   local pane
   pane="$(herdr pane split --current --direction right --cwd "$work" --no-focus \
             | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')"
-  herdr pane run "$pane" "CLAUDE_CONFIG_DIR='$cfg' '$bin' --model \"\$(python3 -c \"import json;print(json.load(open('$cfg/settings.json'))['model'])\")\""
-  herdr agent wait "$pane" --until idle --timeout 60000 >/dev/null
+  # HERDR_AGENT=claude: the pilot binaries' names hide them from herdr's
+  # foreground-process detection; the hint selects the claude screen manifest.
+  herdr pane run "$pane" "HERDR_AGENT=claude CLAUDE_CONFIG_DIR='$cfg' '$bin' --model \"\$(python3 -c \"import json;print(json.load(open('$cfg/settings.json'))['model'])\")\""
+  # agent wait fails immediately with agent_not_found until detection registers
+  # the booting process, so poll until the pane is a live idle agent.
+  local ok="" i
+  for i in $(seq 1 20); do
+    if herdr agent wait "$pane" --until idle --timeout 15000 >/dev/null 2>&1; then ok=1; break; fi
+    sleep 1
+  done
+  [ -n "$ok" ] || die "pane $pane never became an idle claude agent (try: herdr agent explain $pane)"
   while IFS= read -r -d '' turn; do
     herdr agent prompt "$pane" "$turn" --wait --timeout 600000 >/dev/null
   done < <(parse_turns "$seed_pkt/prompt.md")

@@ -66,7 +66,7 @@ pilot-launch side model="claude-opus-4-8":
     bash scripts/pilot-seed-config.sh "$CFG" "{{model}}" >/dev/null
     PANE="$(herdr pane split --current --direction right --cwd "$PWD" --no-focus \
              | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')"
-    herdr pane run "$PANE" "CLAUDE_CONFIG_DIR='$CFG' '$BIN' --model {{model}}"
+    herdr pane run "$PANE" "HERDR_AGENT=claude CLAUDE_CONFIG_DIR='$CFG' '$BIN' --model {{model}}"
     echo "launched {{side}} in pane $PANE  (CLAUDE_CONFIG_DIR=$CFG)"
 
 # Fire ONE compare pair through herdr. Default is zero-spend --check; pass FIRE=1 to spend (Jeremy's trigger).
