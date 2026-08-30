@@ -139,6 +139,9 @@ with open(path, 'w', encoding='utf-8') as f:
     json.dump(cfg, f, indent=2)
     f.write('\n')
 PY
+  # Fresh session state per side: prior pairs' transcripts are already captured,
+  # and auto-memory written by an earlier pair must not leak into this one.
+  rm -rf "$cfg/projects"
   local pane
   pane="$(herdr pane split --current --direction right --cwd "$work" --no-focus \
             | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')"
@@ -175,15 +178,24 @@ PY
   t="$(ls -t "$cfg"/projects/*/*.jsonl 2>/dev/null | head -n1)" || true
   [ -n "$t" ] || die "no transcript captured under $cfg/projects (verify CLAUDE_CONFIG_DIR transcript path)"
   cp "$t" "$OUT/$side.jsonl"
+  # Quota tripwire: a usage-limit refusal mid-side leaves a truncated transcript
+  # that would otherwise be captured and marked DONE. Scan the tail (limit hits
+  # end a session, and tail-only avoids false positives from task content that
+  # merely discusses limits); on a hit, drop the capture so the side re-fires
+  # after the window resets. Best-effort string match, not a verified schema.
+  if tail -n 5 "$OUT/$side.jsonl" | LC_ALL=C grep -aiqE 'usage limit|limit reached|limit will reset'; then
+    rm -f "$OUT/$side.jsonl"
+    die "$side hit a usage limit mid-run; capture dropped - re-fire this pair after the window resets"
+  fi
   python3 "$ROOT/scripts/pilot-metrics.py" "$OUT/$side.jsonl" --task-id "$task" \
     | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)))' > "$OUT/m-$side.jsonl"
   # Bypass mode lets a pane write outside its sandbox when the packet prompt
   # names a real path. Detect it: such files leak state between the panes (the
   # other side can read this side's answer), so quarantine them before firing
   # the other side. Warn only; moving user files is a human call.
-  python3 - "$OUT/$side.jsonl" "$work" "$side" <<'PY'
+  python3 - "$OUT/$side.jsonl" "$work" "$side" "$cfg" <<'PY'
 import json, sys
-path, work, side = sys.argv[1], sys.argv[2], sys.argv[3]
+path, work, side, cfg = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 outside = []
 for line in open(path):
     line = line.strip()
@@ -195,7 +207,9 @@ for line in open(path):
             continue
         if b.get('name') in ('Write', 'Edit', 'NotebookEdit'):
             fp = (b.get('input') or {}).get('file_path') or ''
-            if fp and not (fp.startswith(work) or fp.startswith('/private' + work)):
+            inside = (fp.startswith(work) or fp.startswith('/private' + work)
+                      or fp.startswith(cfg))  # pane's own config dir (auto-memory etc.)
+            if fp and not inside:
                 outside.append(fp)
         elif b.get('name') == 'Bash':
             # Deny rules cannot path-scope Bash, so home-path mentions in
