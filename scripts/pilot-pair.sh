@@ -221,6 +221,9 @@ for line in open(path):
 for fp in sorted(set(outside)):
     print(f"pilot-pair: WARNING {side} wrote OUTSIDE its sandbox: {fp} - quarantine before firing the other side", file=sys.stderr)
 PY
+  # This function split the pane, so it cleans it up. Close only on success:
+  # a failed side keeps its pane open for inspection.
+  herdr pane close "$pane" >/dev/null 2>&1 || true
 }
 
 fire() {
