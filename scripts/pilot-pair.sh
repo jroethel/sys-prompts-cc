@@ -191,11 +191,19 @@ for line in open(path):
     r = json.loads(line)
     if r.get('type') != 'assistant': continue
     for b in (r.get('message') or {}).get('content') or []:
-        if isinstance(b, dict) and b.get('type') == 'tool_use' \
-           and b.get('name') in ('Write', 'Edit', 'NotebookEdit'):
+        if not (isinstance(b, dict) and b.get('type') == 'tool_use'):
+            continue
+        if b.get('name') in ('Write', 'Edit', 'NotebookEdit'):
             fp = (b.get('input') or {}).get('file_path') or ''
             if fp and not (fp.startswith(work) or fp.startswith('/private' + work)):
                 outside.append(fp)
+        elif b.get('name') == 'Bash':
+            # Deny rules cannot path-scope Bash, so home-path mentions in
+            # commands are surfaced for human review (reads will false-positive;
+            # this is a tripwire, not a verdict).
+            cmd = (b.get('input') or {}).get('command') or ''
+            if '/Users/' in cmd or '~/' in cmd:
+                outside.append('Bash: ' + cmd[:120])
 for fp in sorted(set(outside)):
     print(f"pilot-pair: WARNING {side} wrote OUTSIDE its sandbox: {fp} - quarantine before firing the other side", file=sys.stderr)
 PY

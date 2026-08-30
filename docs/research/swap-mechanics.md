@@ -122,3 +122,9 @@ If true, any A/B pilot has a non-stock, mismatched baseline and should `tweakcc 
 The inferred claim above that the installed binary is tweakcc-patched to the Fable-5 set is wrong in direction.
 Byte-level checks (all 1420 appliedHashes entries null; stock "act when ready" phrasing present in the binary, lobotomized-only sentence absent) show the 20:29:47 write was a `--restore`.
 The live install is stock 2.1.204; the ~/.tweakcc/system-prompts symlink only selects what a future `--apply` would use.
+
+## Addendum (2026-08-29): the correction above went stale the same evening
+
+Jeremy re-applied the pack (fable-5 flavor) to the live 2.1.204 on 2026-08-22 at 22:28, about two hours after the `--restore` the correction verified, having concluded his daily driver did not need to stay stock for the testing setup.
+Byte-verified 2026-08-29: the live binary contains the lobo rewrite phrasing and was last written 2026-08-22 22:28.
+The live install is therefore PATCHED; the pilot's clean stock and variant references are the pinned copies under `~/.local/share/claude-code-pilot/` (see `pilot/HERDR-LAYOUT.md`).
