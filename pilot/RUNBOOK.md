@@ -120,6 +120,7 @@ python3 scripts/pilot-verdict.py pilot/passN/pairwise.jsonl \
 
 Re-snapshot the shared-state hash set exactly as in stage 0 into `/tmp/sp-passN-state-after.txt` and diff the two.
 Any difference is a finding to report even if the verdict is clean.
+Caveat: concurrent live-session use (the daily install) legitimately mutates `~/.claude.json` (startup counters, per-project stats), so a hash diff there alone is not a leak; the leak indicator is pane-related content in the JSON diff, above all any `/tmp/sp-pair-*` or `/tmp/sp-pass*` path appearing in the live file.
 
 Present the read-out to Jeremy for go/no-go: verdict, behavior ratio, cache-write medians, guard breaches if any, compaction secondary, the hash diff, and the pass's actual spend against the $60 cap.
 An inconclusive stage triggers a check-in, not a conclusion: report what was measured and stop for a decision.

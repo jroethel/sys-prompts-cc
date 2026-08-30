@@ -118,6 +118,17 @@ fire_side() {
   local side="$1" bin="$2" cfg="$3" task="$4" seed_pkt="$5"
   local work="/tmp/sp-pair-$task-$side"
   rm -rf "$work"; cp -R "$seed_pkt/input" "$work"   # byte-identical reset per side
+  # Pre-trust the work dir so the pane never blocks on the folder-trust dialog.
+  python3 - "$cfg/.claude.json" "$work" <<'PY'
+import json, sys
+path, work = sys.argv[1], sys.argv[2]
+with open(path, encoding='utf-8') as f:
+    cfg = json.load(f)
+cfg.setdefault('projects', {})[work] = {"hasTrustDialogAccepted": True}
+with open(path, 'w', encoding='utf-8') as f:
+    json.dump(cfg, f, indent=2)
+    f.write('\n')
+PY
   local pane
   pane="$(herdr pane split --current --direction right --cwd "$work" --no-focus \
             | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')"

@@ -1,4 +1,7 @@
 {
   "model": "REPLACED_BY_SEED",
-  "includeCoAuthoredBy": false
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  }
 }
