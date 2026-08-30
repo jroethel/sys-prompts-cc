@@ -2,7 +2,7 @@
 
 This is the human procedure for firing pass 1 and pass 2.
 Every step names its script by path; nothing here is automated end to end.
-Firing the 12 paired runs per pass runs through the #8 herdr skeleton (`pilot/HERDR-LAYOUT.md`, recipe `just pilot-pair`); it replaces only step 3, never the checkpoints around it.
+Firing the 13 paired runs per pass runs through the #8 herdr skeleton (`pilot/HERDR-LAYOUT.md`, recipe `just pilot-pair`); it replaces only step 3, never the checkpoints around it.
 
 Zero-spend proof before any of this: `just pilot-dryrun` composes the whole instrument over two real historical transcripts.
 
@@ -18,7 +18,7 @@ pilot/runs/passN/<task_id>/variant.jsonl      raw variant-pane transcript
 pilot/runs/passN/<task_id>/m-stock.jsonl      one-line metrics record, --task-id <task_id>
 pilot/runs/passN/<task_id>/m-variant.jsonl    one-line metrics record, --task-id <task_id>
 pilot/passN/<task_id>/{A.txt,B.txt,key.sealed.json}   blind reading copies
-pilot/passN/pairwise.jsonl                    the 12-row human rating log
+pilot/passN/pairwise.jsonl                    the 13-row human rating log
 ```
 
 A pair is DONE when all four files under `pilot/runs/passN/<task_id>/` exist.
@@ -58,7 +58,7 @@ for f in ~/.claude.json ~/.claude/settings.json ~/.tweakcc/config.json \
 done > /tmp/sp-passN-state-before.txt
 ```
 
-## Stage 1: fire the 12 paired runs
+## Stage 1: fire the 13 paired runs
 
 One pair per task packet under `pilot/tasks/<id>/`, input snapshot reset per pane so both panes start byte-identical.
 Firing mechanics are the #8 herdr skeleton's: `FIRE=1 just pilot-pair passN <task_id> <seed>` splits the two panes, replays the turns, and lands the four capture files itself (`pilot/HERDR-LAYOUT.md`).
@@ -99,7 +99,7 @@ Do not open `key.sealed.json` until after rating.
 
 ## Stage 3: rate, a day later
 
-At least a day after any variant work, Jeremy reads each pair's `A.txt`/`B.txt` blind and rates A, B, or tie into `pilot/passN/pairwise.jsonl`, one row per pair, exactly 12 rows, schema per `pilot/pass1/README.md`.
+At least a day after any variant work, Jeremy reads each pair's `A.txt`/`B.txt` blind and rates A, B, or tie into `pilot/passN/pairwise.jsonl`, one row per pair, exactly 13 rows, schema per `pilot/pass1/README.md`.
 Validate the filled log before computing anything:
 
 ```

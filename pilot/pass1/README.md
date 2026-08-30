@@ -1,6 +1,6 @@
 # Pass 1: pairwise log
 
-Pass 1 runs the 12 paired tasks with the same model in both panes, so the only difference between panes is the system prompt under test.
+Pass 1 runs the 13 paired tasks with the same model in both panes, so the only difference between panes is the system prompt under test.
 This directory holds the pass-1 pairwise log and nothing else; it is created at pass time.
 
 ## Model pins (pass 1)
@@ -10,7 +10,7 @@ This directory holds the pass-1 pairwise log and nothing else; it is created at 
 
 ## pairwise.jsonl
 
-One row per pair, exactly 12 rows, filled by the HUMAN blind-rating checkpoint.
+One row per pair, exactly 13 rows, filled by the HUMAN blind-rating checkpoint.
 A script never writes this file.
 The rater (Jeremy, at least a day after any variant work) reads the blinded A/B reading copies and records the call.
 Validate the filled log before computing anything with it:

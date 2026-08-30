@@ -1,7 +1,7 @@
 # Herdr workspace layout (the #8 firing skeleton)
 
 This is the work plane that replaces RUNBOOK Stage 1.
-It fires the 12 paired runs per pass; every checkpoint around Stage 1 (isolation, seeding, blinding, rating, verdict) stays exactly as the RUNBOOK has it.
+It fires the 13 paired runs per pass; every checkpoint around Stage 1 (isolation, seeding, blinding, rating, verdict) stays exactly as the RUNBOOK has it.
 Nothing here fires on its own: `--check` is zero spend, `--fire` (`FIRE=1`) is Jeremy's trigger.
 
 ## Recipes

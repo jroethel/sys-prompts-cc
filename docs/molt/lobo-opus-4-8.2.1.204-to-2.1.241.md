@@ -1,5 +1,5 @@
 <!--
-generated: 2026-08-23T23:56:30+00:00
+generated: 2026-08-24T01:54:40+00:00
 pack: lobo-opus-4-8
 ref: e0e969b7125d6b1381ec650b24bb2efa0949347d
 oldV: 2.1.204
@@ -13,10 +13,9 @@ DO NOT EDIT
 | version | rung  | extractor identity | record count | file count |
 |---------|-------|--------------------|--------------|------------|
 | 2.1.204 | cache | (unrecorded)       | 1537         | 1426       |
-| 2.1.241 | cache | (unrecorded)       | 5072         | 4743       |
+| 2.1.241 | cache | cache              | 5072         | 4743       |
 
-Extractor drift: unrecorded on both rungs.
-Both provenance files predate per-rung extractor identity, so this report reads unrecorded on both.
+Extractor drift: unrecorded on one rung (the other records cache).
 Record count is provenance prompt_count (JSON records).
 File count is on-disk unique-id .md files - normalize-corpus.py collapses identical-content duplicate records into one file.
 
@@ -10416,6 +10415,4 @@ export const meta = { name: '$INTERP', description: '$INTERP', whenToUse: '$INTE
 - ui-interpolated-pair-middle-dot
 
 ## Retro-check
-- error-manifest-version-mismatch: skrabe [] vs corpus ['ec5a01d8']
-- tool-description-max-thinking-tokens-and-display: skrabe [] vs corpus ['e5972581']
-- ui-interpolated-pair-middle-dot: skrabe [] vs corpus ['7ca685c9']
+Not run (deterministic mode).

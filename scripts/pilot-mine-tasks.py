@@ -35,6 +35,17 @@ def selftest():
     assert "s-empty" not in out, out
     red = {c["source_session"]: c for c in candidates(sessions, "rit-wsl", redact=True)}
     assert "prompt_text" not in red["s-quick"] and "human_turns" not in red["s-quick"], red
+    assert red["s-quick"]["human_turn_count"] == 1, red
+    assert red["s-multi"]["human_turn_count"] == 2, red
+
+    trunc = {c["source_session"]: c for c in candidates(sessions, "rit-wsl", prompt_len=3)}
+    assert trunc["s-quick"]["prompt_text"] == "fix", trunc
+    assert trunc["s-multi"]["human_turns"] == ["bui", "now"], trunc
+
+    found = candidates(sessions, "rit-wsl", search="add Y")
+    assert [c["source_session"] for c in found] == ["s-multi"], found
+    kept = candidates(sessions, "rit-wsl", ignore="add Y")
+    assert [c["source_session"] for c in kept] == ["s-quick"], kept
     print("selftest: ok")
 
 
@@ -58,7 +69,14 @@ def _human_texts(rec: dict) -> list:
     ]
 
 
-def candidates(sessions: dict, host: str, redact: bool = False) -> list:
+def candidates(
+    sessions: dict,
+    host: str,
+    redact: bool = False,
+    prompt_len: int = None,
+    search: str = None,
+    ignore: str = None,
+) -> list:
     out = []
     for name, records in sessions.items():
         turns = sum(1 for r in records if isinstance(r, dict) and r.get("type") == "assistant")
@@ -73,10 +91,18 @@ def candidates(sessions: dict, host: str, redact: bool = False) -> list:
         ]
         if not human_turns:
             continue
+        if search and not any(search in t for t in human_turns):
+            continue
+        if ignore and any(ignore in t for t in human_turns):
+            continue
+        prompt_text, turns_out = human_turns[0], human_turns
+        if prompt_len is not None:               # truncate for scanning, not a content transform
+            prompt_text = prompt_text[:prompt_len]
+            turns_out = [t[:prompt_len] for t in human_turns]
         cand = {
             "source_session": name,
-            "prompt_text": human_turns[0],
-            "human_turns": human_turns,
+            "prompt_text": prompt_text,
+            "human_turns": turns_out,
             "turns": turns,
             "stratum": "quick" if turns <= 5 else "multi",
             "host": host,
@@ -86,6 +112,7 @@ def candidates(sessions: dict, host: str, redact: bool = False) -> list:
                 "source_session": name,
                 "turns": turns,
                 "stratum": cand["stratum"],
+                "human_turn_count": len(human_turns),
                 "host": host,
             }
         out.append(cand)
@@ -131,9 +158,10 @@ def main():
         return
     usage = (
         "usage: pilot-mine-tasks.py <jsonl-glob-or-dir> [--host <label>] [--no-text]"
-        " |--selftest"
+        " [--prompt-len N] [--search <phrase>] [--ignore <phrase>] |--selftest"
     )
     host, redact, path = socket.gethostname(), False, None
+    prompt_len, search, ignore = None, None, None
     i = 0
     while i < len(argv):
         if argv[i] == "--host" and i + 1 < len(argv):
@@ -142,6 +170,15 @@ def main():
         elif argv[i] == "--no-text":
             redact = True
             i += 1
+        elif argv[i] == "--prompt-len" and i + 1 < len(argv):
+            prompt_len = int(argv[i + 1])
+            i += 2
+        elif argv[i] == "--search" and i + 1 < len(argv):
+            search = argv[i + 1]
+            i += 2
+        elif argv[i] == "--ignore" and i + 1 < len(argv):
+            ignore = argv[i + 1]
+            i += 2
         elif path is None:
             path = argv[i]
             i += 1
@@ -160,7 +197,10 @@ def main():
     else:
         files = sorted(Path(g) for g in glob.glob(os.path.expanduser(path)))
     for f in files:                              # one session at a time: candidates() per file bounds memory
-        for cand in candidates({f.stem: _load_session(f)}, host, redact):
+        session_cands = candidates(
+            {f.stem: _load_session(f)}, host, redact, prompt_len, search, ignore
+        )
+        for cand in session_cands:
             print(json.dumps(cand))
 
 

@@ -141,5 +141,78 @@ pre.diagram { background: #f0eee6; border: 1px solid var(--line); border-radius:
 </section>
 
 <footer>Generated from the 2026-08-23 /loop-brainstorm sitting for wayfinder #10 (Claude Fable 5 + Jeremy). Updated same day after the single Rubix lens A review (harness-engineer seat): pack-scope and retro-check register rows revised to the post-review policy. Companion docs live in docs/research/diff-surface.md, docs/briefs/, and the wayfinder map at GitHub issue #1.</footer>
+
+<h2>Updates - 2026-08-24 upgrade-path orientation session</h2>
+<section class="card">
+<dl>
+<dt>The molt (#18) and the pilot's "Pass 2" are different artifacts; do not conflate them.</dt>
+<dd>The molt is a static text diff: the override pack against stock prompt text at 2.1.204 and again at 2.1.241, classifying each override. It runs zero live models and measures no behavior - text against text, inherently one-dimensional. "Pass 2" is a live A/B benchmark run. The "compared across too many dimensions" critique applies to Pass 2, never to the molt.</dd>
+<dd class="why">Surfaced 2026-08-24 when Jeremy asked whether #18 was premature for "comparing across too many dimensions" - he had merged the molt with the pilot's Pass 2. Separating them changed every downstream answer.</dd>
+
+<dt>The molt detects drift; deciding what to do with the drift is a separate, downstream step.</dt>
+<dd>Molt = understanding what changed moving current -> new. Acting on it (resolve the 365 review findings, carry the pack forward, or drop it) is a distinct decision, gated on evidence the molt itself does not produce.</dd>
+<dd class="why">Jeremy restated this himself and asked "I think that means we agree?" - it does.</dd>
+
+<dt>Pass 1 and Pass 2 are the two live benchmark runs in the pilot (issues #8/#16), scaffolded in <code>pilot/pass1/</code> and <code>pilot/pass2/</code>.</dt>
+<dd>Pass 1: the 12 curated tasks fired stock SP vs lobotomized SP, both panes <code>claude-opus-4-8</code>, both on 2.1.204 - one variable, the system prompt. This IS "the dozen lobotomized tests." Pass 2 (as originally defined): whole-stack comparison, current install (2.1.204 + lobotomized + opus-4-8) vs fresh out-of-box (2.1.241 + stock + new model) - three variables at once.</dd>
+
+<dt>Bundled Pass 2 cannot attribute its result; that is the confound to design out.</dt>
+<dd>If out-of-box wins, you cannot tell whether the new model, the version bump, or dropping the pack caused it - and those point at opposite conclusions about whether to keep the lobotomized pack. A bundled comparison is a fair product go/no-go ("upgrade at all?") but the wrong instrument for measuring impact one variable at a time.</dd>
+
+<dt>Pass 1 is independent of #18, so #18 is parked behind it.</dt>
+<dd>Pass 1 runs on 2.1.204 where the lobotomized pack is already native - no molt needed. Pass 1 answers "does lobotomized work." If no, the 365 findings are moot (upgrade to stock). If yes, the molt becomes the mechanism to realign the pack to 2.1.241. So run Pass 1 first, then decide on #18.</dd>
+<dd class="why">Jeremy's own instinct ("should it be parked until the dozen lobotomized tests can be run?") - confirmed correct with the dependency logic, not just agreed to.</dd>
+
+<dt>The clean new-stack SP test is the comparison that is missing, and it is gated on #18.</dt>
+<dd>To isolate the SP where it will actually run: <code>{2.1.241 + new model + stock SP}</code> vs <code>{2.1.241 + new model + molted-lobotomized SP}</code> - Pass 1's one-variable logic moved onto the new stack. It cannot run until the molt (#18) produces a valid 2.1.241 pack, because the pack is tuned for opus-4-8 against 2.1.204 stock.</dd>
+
+<dt>Upgrade-need a-2 (comprehend what changed in stock CC + skill compatibility) is served by neither the molt nor the pilot.</dt>
+<dd>The molt is override-centric; the pilot measures behavior. Neither answers "what did stock Claude Code itself change 2.1.204 -> 2.1.241, and does it break or make redundant my skills and workflows." Filed as issue #19 (<code>wayfinder:research</code>). Raw material already exists: <code>corpora/2.1.204</code> and <code>corpora/2.1.241</code> support a stock-vs-stock diff, and <code>/loop-molt</code> covers the skill-compatibility half.</dd>
+
+<dt>Curating the 12 tasks (Task 5) is the real current blocker, and it is a human-judgment gate.</dt>
+<dd>A script (<code>pilot-mine-tasks.py</code>) surfaces candidate tasks from real past sessions (zero spend, local read), labeling each <code>quick</code> (&le;5 assistant turns) or <code>multi</code>. You pick 12 per pass, stratified, choosing tasks that exercise the SP rather than flatter it. Each pick becomes <code>pilot/tasks/&lt;id&gt;/</code> with <code>prompt.md</code> (verbatim human turns, replayed identically to both panes so only the SP differs), <code>checklist.md</code> (done-conditions each with the exact proving command/output), and <code>input/</code> (a byte-identical fixture reset before each pane).</dd>
+<dd class="why">The instrument (#8/#16) is built and closed, but no tasks are curated - <code>pilot/tasks/</code> holds only README and TEMPLATE. This step, plus live spend, is what stands between "built" and "Pass 1 can fire."</dd>
+
+<dt>The scrub gate is a hard, structural PII control, not a cleanup step.</dt>
+<dd>Real-session tasks carry donor/advancement/PII data. Names, IDs, amounts, and queries are synthesized (shape preserved) before a packet leaves its host. Raw day-job prompt text never transits off its governed host; only a <code>--no-text</code> candidates file (shape counts, no content) may travel. <code>pilot/tasks/</code> is gitignored, so a packet enters git only by explicit <code>git add -f</code> after passing the gate - two deliberate actions, gate first.</dd>
+
+<dt>The "368 findings" in #18's title is 365 review verdicts plus 3 retro-check discrepancies.</dt>
+<dd>The committed molt report says <code>review: 365</code>; the 3 retro-check lines (error-manifest-version-mismatch, tool-description-max-thinking-tokens-and-display, ui-interpolated-pair-middle-dot) make up the difference. The working-tree regeneration ran in deterministic mode, which drops the retro-check ("Not run"), so committing it will make the report read 365 and the issue title (368) go stale.</dd>
+<dd class="why">Verified 2026-08-24 against the committed report at dbcec7e and the uncommitted working-tree diff. Left uncommitted; Jeremy has not decided to commit the regenerated report.</dd>
+</dl>
+</section>
+
+<h2>Updates - key decisions register (2026-08-24)</h2>
+<section class="card">
+<table>
+<tr><th>Decision</th><th>Alternatives considered</th><th>Why</th></tr>
+<tr><td>Park #18 with a comment stating the Pass 1 dependency; resolve nothing yet</td>
+    <td>Resolve the 365 findings now; abandon the pack outright; set a formal blocked-by</td>
+    <td>Pass 1 is independent of #18 and decides whether the pack is worth carrying to 2.1.241. Resolving 365 findings before that verdict risks wasted effort. A comment is the faithful minimal action for "park."</td></tr>
+<tr><td>File upgrade-need a-2 as a new issue (#19, <code>wayfinder:research</code>)</td>
+    <td>Fold into #18; drop into the Backlog as an <code>idea</code></td>
+    <td>It is a distinct upgrade lens neither the molt nor the pilot covers, and it is upstream of the upgrade decision, not a parked enhancement. It is investigative work producing a digest, so research over task.</td></tr>
+<tr><td>Redefine Pass 2 to the same-new-stack one-variable SP test, gated on #18; demote the bundled comparison to a rough "upgrade at all" sniff</td>
+    <td>Keep the bundled three-variable Pass 2 as the molt question</td>
+    <td>The bundled run cannot attribute cause, blurring the exact keep-the-pack question the project exists to answer.</td></tr>
+</table>
+</section>
+
+<h2>Updates - user preferences (2026-08-24)</h2>
+<section class="card">
+<dl>
+<dt>Jeremy reasons about experiments as "one variable at a time / apples-to-apples" and expects confounds flagged even when he only half-raises them.</dt>
+<dd>When he says a comparison "seems a bit apples to oranges," validate the instinct with the concrete mechanism (name the variables that move), do not merely agree and do not reflexively defend the existing design. Run the adversarial pass, then land on the answer.</dd>
+<dd class="why">Surfaced 2026-08-24: he flagged the Pass 2 confound himself and wanted it confirmed with reasoning, then extended to whether #18 was premature.</dd>
+
+<dt>He zooms out to a requirements list ("here is what I actually need to do X") and expects existing artifacts mapped against those needs, with the gap named.</dt>
+<dd>Answer by mapping each stated need to what exists (built / not run / missing), and surface the genuinely under-served need explicitly rather than reporting only on what was asked. The a-2 gap was found this way.</dd>
+
+<dt>He corrects his own framing mid-thread and expects the agent to track the correction, not re-litigate.</dt>
+<dd>When he says "I realize I misspoke - molt is about drift... what to do with that is TBD... we agree?", confirm the alignment plainly and move on.</dd>
+</dl>
+</section>
+
+<footer>Updated from the 2026-08-24 upgrade-path orientation session (Claude Opus 4.8 + Jeremy). This session parked #18, filed #19 (stock-vs-stock upgrade digest), and clarified the Pass 1 / Pass 2 / molt boundaries. The molt report and 2.1.241 provenance remain regenerated-but-uncommitted in the working tree. Companion docs live in docs/research/measurement-methodology.md (Section 7 lobotomized claims), docs/briefs/2026-08-22-sp-metrics-benchmarks-brief.md, pilot/tasks/README.md (curation), and the wayfinder map at GitHub issue #1.</footer>
 </body>
 </html>

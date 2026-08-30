@@ -12,7 +12,7 @@ GUARD_METRICS = ("input_tokens", "output_tokens",
                  "cache_creation_input_tokens", "turns")
 # cache_read_input_tokens is deliberately NOT guarded: more reuse is cheaper
 # and better, not worse.
-PAIRS_REQUIRED = 12
+PAIRS_REQUIRED = 13
 LOG_FIELDS = {"task_id": str, "order": str, "rating": str,
               "variant_won": (bool, type(None)), "reason": str, "rated_at": str}
 LOG_ORDER = ("A=stock", "A=variant")
@@ -202,7 +202,7 @@ def boundary_selftest():
     rows = ([lrow(0, "A=stock", "A", False), lrow(1, "A=stock", "B", True),
              lrow(2, "A=variant", "A", True), lrow(3, "A=variant", "B", False),
              lrow(4, "A=stock", "tie", None)]
-            + [lrow(i, "A=stock", "A", False) for i in range(5, 12)])
+            + [lrow(i, "A=stock", "A", False) for i in range(5, 13)])
     assert validate_log(rows) is None, validate_log(rows)
     bad = rows[:3] + [dict(rows[3], variant_won=True)] + rows[4:]
     assert "contradicts" in validate_log(bad), validate_log(bad)

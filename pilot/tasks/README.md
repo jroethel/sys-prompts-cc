@@ -8,7 +8,8 @@ The miner is a script; curation and input-snapshotting are HUMAN steps and are n
 On the host whose sessions you want to mine (this is a local read, zero spend):
 
 ```
-python3 scripts/pilot-mine-tasks.py ~/.claude/projects [--host <label>] [--no-text]
+python3 scripts/pilot-mine-tasks.py ~/.claude/projects [--host <label>] [--no-text] \
+    [--prompt-len N] [--search <phrase>] [--ignore <phrase>]
 ```
 
 - Emits one JSON line per candidate session: `source_session`, `prompt_text`, `human_turns`, `turns`, `stratum`, `host`.
@@ -16,11 +17,32 @@ python3 scripts/pilot-mine-tasks.py ~/.claude/projects [--host <label>] [--no-te
 - Wrappers (slash-command invocations, system reminders, local-command caveats) start with `<` or `Caveat:` and are excluded.
 - `turns` is the assistant-record count; `stratum` is `quick` at 5 or fewer assistant turns, else `multi`.
 - Sessions with no assistant turn or no non-wrapper human text are skipped.
-- `--no-text` drops `prompt_text` and `human_turns` and emits shape counts only.
+- `--no-text` drops `prompt_text` and `human_turns` and emits shape counts only, plus a `human_turn_count`.
+- `--prompt-len N` truncates `prompt_text` and every entry in `human_turns` to the first `N` characters (scanning aid only, no effect under `--no-text`).
+- `--search <phrase>` keeps only sessions where `<phrase>` is a substring of some human turn (like `grep`).
+- `--ignore <phrase>` drops sessions where `<phrase>` is a substring of some human turn (like `grep -v`); filtering runs before `--no-text` redaction, so it still works combined with `--no-text`.
+
+## Triage sessions before picking (optional)
+
+The miner's candidate lines are shaped for packet-building, not for getting a feel for what's in your history.
+For that, run the triage script instead (also a local read, zero spend):
+
+```
+python3 scripts/session-triage.py ~/.claude/projects [--host <label>] [--preview-len N]
+```
+
+- Emits one JSON line per session: `source_session`, `host`, `turns`, `human_turn_count`, `elapsed_min`, `role`, `canonical_role`, `frustration_hits`, `preview`.
+- `role` is captured from a `"You are a/an/the <role>..."` opener or a `WORKER RULES`/`GLOBAL CONSTRAINTS` marker in the first human turn; empty when the session opened as an ordinary organic request.
+- `canonical_role` collapses near-duplicate `role` phrasing (e.g. `code-feature worker` and `code-feature worker on the substack-scraper Python repo`) into one bucket, so you can pick one example per loop-stack role instead of per phrasing.
+- `frustration_hits` counts human turns after the first containing correction language ("no,", "wrong", "stop", "revert", ...) - a rough proxy for how bumpy the session was.
+- `elapsed_min` is wall-clock first-to-last record time, not active work time; a session left open across days shows a large number for that reason alone, so treat it as a weak signal and lean on `frustration_hits` instead.
+- `--preview-len N` (default 80) truncates the first human turn shown in `preview`.
+
+This script is a browsing lens, not part of the packet pipeline below - it never selects or writes a packet, and its output carries the same raw-text sensitivity as the miner's, so treat any saved output under the scrub gate too.
 
 ## Pick 12 per pass
 
-Read the candidate lines and select 12 tasks per pilot pass, stratified across `quick` and `multi`.
+Read the candidate lines and select the pass's task set (pass 1 shipped 13; see `pilot/mine-work/selected-13-packets.md`), stratified across `quick` and `multi`.
 Aim for a mix that exercises the system prompt under test rather than flattering it: varied domains, some tasks where the SP plausibly matters, some short mechanical fixes, some longer builds.
 Record which `source_session` each pick came from.
 

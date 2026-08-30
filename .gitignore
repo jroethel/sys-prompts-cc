@@ -4,3 +4,10 @@ pilot/**/*.jsonl
 pilot/**/key.sealed.json
 pilot/runs/
 pilot/tasks/
+pilot/mine-work/session-shortlist.md
+pilot/mine-work/pilot-mine-tasks.*.out
+pilot/mine-work/loop-stack
+pilot/mine-work/you_are_a.md
+pilot/mine-work/you_are_not_a.md
+__pycache__/
+.*.swp

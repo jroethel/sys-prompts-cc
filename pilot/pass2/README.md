@@ -1,6 +1,6 @@
 # Pass 2: pairwise log
 
-Pass 2 runs the same 12 paired tasks with the old and new model generations split across the panes, testing the system prompt where the molt will actually land.
+Pass 2 runs the same 13 paired tasks with the old and new model generations split across the panes, testing the system prompt where the molt will actually land.
 This directory holds the pass-2 pairwise log and nothing else; it is created at pass time.
 
 ## Model pins (pass 2)
@@ -13,7 +13,7 @@ Resolved variant model ID (fill in at staging): `PENDING`
 
 ## pairwise.jsonl
 
-One row per pair, exactly 12 rows, filled by the HUMAN blind-rating checkpoint.
+One row per pair, exactly 13 rows, filled by the HUMAN blind-rating checkpoint.
 A script never writes this file.
 The rater (Jeremy, at least a day after any variant work) reads the blinded A/B reading copies and records the call.
 Validate the filled log before computing anything with it:
