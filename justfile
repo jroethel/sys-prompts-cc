@@ -60,7 +60,7 @@ pilot-launch side model="claude-opus-4-8":
     [ "${HERDR_ENV:-}" = 1 ] || { echo "not inside herdr" >&2; exit 1; }
     case "{{side}}" in
       stock)   BIN="${STOCK_BIN:-$HOME/.local/share/claude-code-pilot/2.1.204-stock}";;
-      variant) BIN="${VARIANT_BIN:-$HOME/.local/share/claude-code-pilot/2.1.204-variant-fable5}";;
+      variant) BIN="${VARIANT_BIN:-$HOME/.local/share/claude-code-pilot/2.1.204-variant-opus-4-8}";;
     esac
     CFG="/tmp/sp-launch-{{side}}"
     bash scripts/pilot-seed-config.sh "$CFG" "{{model}}" >/dev/null

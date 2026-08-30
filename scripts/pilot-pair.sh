@@ -23,7 +23,7 @@ export LC_ALL=C
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STOCK_BIN="${STOCK_BIN:-$HOME/.local/share/claude-code-pilot/2.1.204-stock}"
-VARIANT_BIN="${VARIANT_BIN:-$HOME/.local/share/claude-code-pilot/2.1.204-variant-fable5}"
+VARIANT_BIN="${VARIANT_BIN:-$HOME/.local/share/claude-code-pilot/2.1.204-variant-opus-4-8}"
 
 die() { echo "pilot-pair: $1" >&2; exit 1; }
 

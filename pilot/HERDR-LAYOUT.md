@@ -20,7 +20,7 @@ Nothing here fires on its own: `--check` is zero spend, `--fire` (`FIRE=1`) is J
 tab: pair <task_id>
   caller pane (orchestrator, stays focused)
   ├─ split right ──► stock pane    CLAUDE_CONFIG_DIR=/tmp/sp-<pass>-stock    binary: 2.1.204-stock
-  └─ split right ──► variant pane  CLAUDE_CONFIG_DIR=/tmp/sp-<pass>-variant  binary: 2.1.204-variant-fable5
+  └─ split right ──► variant pane  CLAUDE_CONFIG_DIR=/tmp/sp-<pass>-variant  binary: 2.1.204-variant-opus-4-8
 ```
 
 - Each pane runs its pilot binary with its own `CLAUDE_CONFIG_DIR`, so the two sessions never touch each other or the live install (isolation proven by `scripts/pilot-isolation-check.sh`).
