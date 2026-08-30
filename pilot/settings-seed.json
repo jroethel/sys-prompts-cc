@@ -1,6 +1,11 @@
 {
   "model": "REPLACED_BY_SEED",
   "includeCoAuthoredBy": false,
+  "autoUpdates": false,
+  "env": {
+    "DISABLE_AUTOUPDATER": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
   "permissions": {
     "defaultMode": "bypassPermissions"
   }

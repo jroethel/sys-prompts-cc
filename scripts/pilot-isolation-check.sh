@@ -30,6 +30,9 @@ hash_state() {
   for f in "${FILES[@]}"; do
     [ -e "$f" ] && shasum -a 256 "$f"
   done
+  # The install launcher is shared state too: a pane with an unprotected config
+  # once auto-updated it (2026-08-29, 2.1.204 -> 2.1.251 mid-pass).
+  echo "launcher $(readlink "$HOME/.local/bin/claude" 2>/dev/null || echo none)"
 }
 
 BEFORE="$(hash_state)"

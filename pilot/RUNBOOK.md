@@ -52,11 +52,15 @@ Pass 2 seeds the variant dir with the resolved model ID from checkpoint B, not `
 Snapshot the daily-install shared-state hash set (the same five paths `scripts/pilot-isolation-check.sh` guards):
 
 ```
-for f in ~/.claude.json ~/.claude/settings.json ~/.tweakcc/config.json \
+{ for f in ~/.claude.json ~/.claude/settings.json ~/.tweakcc/config.json \
          ~/.tweakcc/systemPromptAppliedHashes.json ~/.tweakcc/systemPromptOriginalHashes.json; do
   [ -e "$f" ] && shasum -a 256 "$f"
-done > /tmp/sp-passN-state-before.txt
+done; echo "launcher $(readlink ~/.local/bin/claude)"; } > /tmp/sp-passN-state-before.txt
 ```
+
+The launcher symlink is in the guard because a pane whose seeded config lacked the updater
+disables once auto-updated the shared install mid-pass (2026-08-29); `pilot/settings-seed.json`
+now carries `autoUpdates: false` and `DISABLE_AUTOUPDATER=1` so pane processes cannot touch it.
 
 ## Stage 1: fire the 13 paired runs
 
