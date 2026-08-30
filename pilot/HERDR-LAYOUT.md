@@ -27,7 +27,19 @@ tab: pair <task_id>
 - Working dir per pane is a fresh `cp -R` of the packet's `input/` snapshot, reset per side, so both panes start byte-identical and only the system prompt differs.
 - Panes are split `--no-focus`; the orchestrator keeps the caller's focus. Never close a pane you did not create.
 
-## Turn replay
+## Building a variant binary (one-time prep per variant, never touches the live install)
+
+```
+cp ~/.local/share/claude-code-pilot/2.1.204-stock ~/.local/share/claude-code-pilot/2.1.204-variant-<flavor>
+ln -sfn ~/.tweakcc/lobotomized-claude-code/system-prompts-<flavor> ~/.tweakcc/system-prompts
+TWEAKCC_CC_INSTALLATION_PATH=~/.local/share/claude-code-pilot/2.1.204-variant-<flavor> \
+    npx -y tweakcc-fixed@latest --apply
+ln -sfn ~/.tweakcc/lobotomized-claude-code/system-prompts-fable-5 ~/.tweakcc/system-prompts   # restore daily
+```
+
+The env var targets the copy directly; the symlink flip selects the pack flavor and is restored after.
+`--apply` mutates the `~/.tweakcc` hash files (shared state), so re-snapshot `/tmp/sp-passN-state-before.txt` after any build, before firing.
+Verify the patch landed by grepping a pack-only phrase in the new binary and its stock counterpart's reduced count, not by trusting the filename.
 
 Turns are parsed in order from `pilot/tasks/<task_id>/prompt.md` (`## Turn N` blocks, HTML comments dropped) and each is sent to BOTH panes via `herdr agent prompt <pane> "<turn>" --wait`.
 Identical turns to both panes is the whole point: the only variable is the SP.
