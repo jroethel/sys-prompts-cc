@@ -76,3 +76,33 @@ pilot-pair pass task seed:
     set -euo pipefail
     MODE=--check; [ "${FIRE:-}" = 1 ] && MODE=--fire
     bash scripts/pilot-pair.sh "$MODE" "{{pass}}" "{{task}}" "{{seed}}"
+
+# Fire a batch of pairs sequentially, blinding each as it lands (SPENDS: invoking this IS the trigger).
+# Stops at the first failure (e.g. quota tripwire) so a re-run resumes cleanly.
+# Usage: just pilot-batch pass1 1 spec-axis-review-subagent supervisor-review-rating-pushback ...
+pilot-batch pass seed +tasks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for t in {{tasks}}; do
+      echo "=== pilot-batch: firing pair $t"
+      FIRE=1 just pilot-pair {{pass}} "$t" {{seed}}
+      python3 scripts/pilot-blind.py \
+        "pilot/runs/{{pass}}/$t/stock.jsonl" "pilot/runs/{{pass}}/$t/variant.jsonl" \
+        --seed {{seed}} --task-id "$t" --out "pilot/{{pass}}/$t" \
+        --config-dir /tmp/sp-{{pass}}-stock --config-dir /tmp/sp-{{pass}}-variant
+    done
+    echo "=== pilot-batch: all pairs in batch DONE and blinded"
+
+# Show per-pair progress for a pass: captured files out of 4, and blinded state.
+pilot-status pass="pass1":
+    #!/usr/bin/env bash
+    set -uo pipefail
+    for d in pilot/tasks/*/; do
+      t="$(basename "$d")"; [ "$t" = TEMPLATE ] && continue
+      n=0
+      for f in stock.jsonl variant.jsonl m-stock.jsonl m-variant.jsonl; do
+        [ -s "pilot/runs/{{pass}}/$t/$f" ] && n=$((n+1))
+      done
+      b="        "; [ -s "pilot/{{pass}}/$t/A.txt" ] && b="blinded "
+      echo "$n/4 $b $t"
+    done
