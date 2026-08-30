@@ -177,6 +177,28 @@ PY
   cp "$t" "$OUT/$side.jsonl"
   python3 "$ROOT/scripts/pilot-metrics.py" "$OUT/$side.jsonl" --task-id "$task" \
     | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)))' > "$OUT/m-$side.jsonl"
+  # Bypass mode lets a pane write outside its sandbox when the packet prompt
+  # names a real path. Detect it: such files leak state between the panes (the
+  # other side can read this side's answer), so quarantine them before firing
+  # the other side. Warn only; moving user files is a human call.
+  python3 - "$OUT/$side.jsonl" "$work" "$side" <<'PY'
+import json, sys
+path, work, side = sys.argv[1], sys.argv[2], sys.argv[3]
+outside = []
+for line in open(path):
+    line = line.strip()
+    if not line: continue
+    r = json.loads(line)
+    if r.get('type') != 'assistant': continue
+    for b in (r.get('message') or {}).get('content') or []:
+        if isinstance(b, dict) and b.get('type') == 'tool_use' \
+           and b.get('name') in ('Write', 'Edit', 'NotebookEdit'):
+            fp = (b.get('input') or {}).get('file_path') or ''
+            if fp and not (fp.startswith(work) or fp.startswith('/private' + work)):
+                outside.append(fp)
+for fp in sorted(set(outside)):
+    print(f"pilot-pair: WARNING {side} wrote OUTSIDE its sandbox: {fp} - quarantine before firing the other side", file=sys.stderr)
+PY
 }
 
 fire() {
