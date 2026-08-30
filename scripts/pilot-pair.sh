@@ -119,12 +119,16 @@ fire_side() {
   local work="/tmp/sp-pair-$task-$side"
   rm -rf "$work"; cp -R "$seed_pkt/input" "$work"   # byte-identical reset per side
   # Pre-trust the work dir so the pane never blocks on the folder-trust dialog.
+  # Key by realpath too: on macOS /tmp resolves to /private/tmp and the binary
+  # looks the project up under the resolved path.
   python3 - "$cfg/.claude.json" "$work" <<'PY'
-import json, sys
+import json, os, sys
 path, work = sys.argv[1], sys.argv[2]
 with open(path, encoding='utf-8') as f:
     cfg = json.load(f)
-cfg.setdefault('projects', {})[work] = {"hasTrustDialogAccepted": True}
+projects = cfg.setdefault('projects', {})
+for key in {work, os.path.realpath(work)}:
+    projects[key] = {"hasTrustDialogAccepted": True}
 with open(path, 'w', encoding='utf-8') as f:
     json.dump(cfg, f, indent=2)
     f.write('\n')
