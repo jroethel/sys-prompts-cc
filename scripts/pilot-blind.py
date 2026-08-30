@@ -98,7 +98,9 @@ def main():
     (out_dir / 'B.txt').write_text(texts[sides['B']] + '\n', encoding='utf-8')
     key = {'A': sides['A'], 'B': sides['B'], 'seed': args.seed, 'task_id': args.task_id}
     (out_dir / 'key.sealed.json').write_text(json.dumps(key, indent=2) + '\n', encoding='utf-8')
-    print(f'blind: {out_dir} (A={sides["A"]})')
+    # Never echo the assignment: it lives only in key.sealed.json, opened after
+    # rating. Announcing (A=stock) here unblinded the runner (caught 2026-08-29).
+    print(f'blind: {out_dir} (assignment sealed)')
 
 if __name__ == '__main__':
     main()

@@ -95,8 +95,11 @@ As soon as a pair's transcripts exist, blind it - blinding early keeps rating co
 python3 scripts/pilot-blind.py pilot/runs/passN/<task_id>/stock.jsonl \
     pilot/runs/passN/<task_id>/variant.jsonl \
     --seed <pass-seed> --task-id <task_id> \
-    --out pilot/passN/<task_id> --config-dir /tmp/sp-passN-stock /tmp/sp-passN-variant
+    --out pilot/passN/<task_id> \
+    --config-dir /tmp/sp-passN-stock --config-dir /tmp/sp-passN-variant
 ```
+
+(`--config-dir` is repeated per dir; a single flag with two values is rejected.)
 
 The `--config-dir` values are the two seeded dirs, so their paths are stripped from the reading copies too.
 Do not open `key.sealed.json` until after rating.
