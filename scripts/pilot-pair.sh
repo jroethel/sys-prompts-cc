@@ -116,6 +116,12 @@ EOF
 # subpath under CLAUDE_CONFIG_DIR are verified at the first live pass.
 fire_side() {
   local side="$1" bin="$2" cfg="$3" task="$4" seed_pkt="$5"
+  # Side-level resume: a side whose two capture files already exist is never
+  # re-fired, so a crash between sides re-runs only the missing side.
+  if [ -s "$OUT/$side.jsonl" ] && [ -s "$OUT/m-$side.jsonl" ]; then
+    echo "pilot-pair: $side side already captured, skipping (no double spend)"
+    return 0
+  fi
   local work="/tmp/sp-pair-$task-$side"
   rm -rf "$work"; cp -R "$seed_pkt/input" "$work"   # byte-identical reset per side
   # Pre-trust the work dir so the pane never blocks on the folder-trust dialog.
@@ -147,8 +153,23 @@ PY
     sleep 1
   done
   [ -n "$ok" ] || die "pane $pane never became an idle claude agent (try: herdr agent explain $pane)"
+  local pout
   while IFS= read -r -d '' turn; do
-    herdr agent prompt "$pane" "$turn" --wait --timeout 600000 >/dev/null
+    if ! pout="$(herdr agent prompt "$pane" "$turn" --wait --timeout 600000 2>&1)"; then
+      if grep -q agent_prompt_stalled <<<"$pout"; then
+        # A trailing @-mention pops CC's file-picker after the bracketed paste
+        # lands, and the popup swallows the submit Enter, leaving the turn text
+        # sitting in the composer (observed live 2026-08-29). esc closes the
+        # popup without touching the composer text; enter submits it.
+        herdr agent send-keys "$pane" esc >/dev/null
+        sleep 1
+        herdr agent send-keys "$pane" enter >/dev/null
+        herdr agent wait "$pane" --timeout 600000 >/dev/null \
+          || die "$side stalled and popup recovery did not start a turn (herdr agent read $pane)"
+      else
+        die "agent prompt failed on $side: $pout"
+      fi
+    fi
   done < <(parse_turns "$seed_pkt/prompt.md")
   local t
   t="$(ls -t "$cfg"/projects/*/*.jsonl 2>/dev/null | head -n1)" || true
