@@ -7,6 +7,14 @@
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Write(//Users/**)",
+      "Edit(//Users/**)",
+      "NotebookEdit(//Users/**)",
+      "Write(~/**)",
+      "Edit(~/**)",
+      "NotebookEdit(~/**)"
+    ]
   }
 }
