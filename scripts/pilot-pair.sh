@@ -24,6 +24,10 @@ export LC_ALL=C
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STOCK_BIN="${STOCK_BIN:-$HOME/.local/share/claude-code-pilot/2.1.204-stock}"
 VARIANT_BIN="${VARIANT_BIN:-$HOME/.local/share/claude-code-pilot/2.1.204-variant-opus-4-8}"
+# Per-turn replay budget (ms). The 10-min default doubles as the "impatient user"
+# interrupt point for light packets; heavy orchestration outliers (batch 7) run a
+# single turn past it and must be given room via PILOT_TURN_TIMEOUT.
+TURN_TIMEOUT="${PILOT_TURN_TIMEOUT:-600000}"
 
 die() { echo "pilot-pair: $1" >&2; exit 1; }
 
@@ -158,7 +162,7 @@ PY
   [ -n "$ok" ] || die "pane $pane never became an idle claude agent (try: herdr agent explain $pane)"
   local pout
   while IFS= read -r -d '' turn; do
-    if ! pout="$(herdr agent prompt "$pane" "$turn" --wait --timeout 600000 2>&1)"; then
+    if ! pout="$(herdr agent prompt "$pane" "$turn" --wait --timeout "$TURN_TIMEOUT" 2>&1)"; then
       if grep -q agent_prompt_stalled <<<"$pout"; then
         # A trailing @-mention pops CC's file-picker after the bracketed paste
         # lands, and the popup swallows the submit Enter, leaving the turn text
@@ -167,8 +171,25 @@ PY
         herdr agent send-keys "$pane" esc >/dev/null
         sleep 1
         herdr agent send-keys "$pane" enter >/dev/null
-        herdr agent wait "$pane" --timeout 600000 >/dev/null \
+        herdr agent wait "$pane" --timeout "$TURN_TIMEOUT" >/dev/null \
           || die "$side stalled and popup recovery did not start a turn (herdr agent read $pane)"
+      elif grep -qE 'agent_blocked|"code":"timeout"' <<<"$pout"; then
+        # Two states, one cure. agent_blocked: the agent ended its turn on an
+        # interactive dialog (AskUserQuestion / permission prompt); esc
+        # dismisses it as "User declined to answer" with no extra model call
+        # (verified live 2026-08-30). timeout: the prior turn left the agent
+        # pinned "working" past the prompt budget - e.g. a background
+        # deep-research workflow holds the spinner (seen 2026-08-30 on pair
+        # changelog-research-interrupted); esc interrupts it, which is what
+        # the recorded user did in that spot. Either way the recorded next
+        # user turn is then submitted. Both sides get identical treatment,
+        # so every turn effectively has a 10-minute budget before the replay
+        # interrupts like an impatient user.
+        herdr agent send-keys "$pane" esc >/dev/null
+        herdr agent wait "$pane" --until idle --until done --timeout 60000 >/dev/null \
+          || die "$side blocked and esc did not clear the dialog (herdr agent read $pane)"
+        herdr agent prompt "$pane" "$turn" --wait --timeout "$TURN_TIMEOUT" >/dev/null \
+          || die "$side re-prompt after unblocking failed (herdr agent read $pane)"
       else
         die "agent prompt failed on $side: $pout"
       fi
@@ -186,6 +207,14 @@ PY
   if tail -n 5 "$OUT/$side.jsonl" | LC_ALL=C grep -aiqE 'usage limit|limit reached|limit will reset'; then
     rm -f "$OUT/$side.jsonl"
     die "$side hit a usage limit mid-run; capture dropped - re-fire this pair after the window resets"
+  fi
+  # Auth tripwire: a logged-out binary "answers" every turn with a real
+  # assistant record reading "Not logged in · Please run /login" (observed
+  # 2026-08-30), which would otherwise be captured and marked DONE. Once
+  # logged out it stays logged out, so the transcript tail always carries it.
+  if tail -n 5 "$OUT/$side.jsonl" | LC_ALL=C grep -aq 'Not logged in'; then
+    rm -f "$OUT/$side.jsonl"
+    die "$side was logged out mid-run; capture dropped - re-firing reseeds credentials"
   fi
   python3 "$ROOT/scripts/pilot-metrics.py" "$OUT/$side.jsonl" --task-id "$task" \
     | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)))' > "$OUT/m-$side.jsonl"
@@ -226,12 +255,83 @@ PY
   herdr pane close "$pane" >/dev/null 2>&1 || true
 }
 
+# Re-copy the live OAuth token into both pilot config dirs before every fire.
+# The binary migrates .credentials.json into a per-config-dir keychain item on
+# first boot, and that copy dies when its access token expires: the refresh
+# fails because the live client already rotated the single-use refresh token
+# (observed 2026-08-30 - both pilot items gutted, panes demanded /login mid
+# batch 3). Dropping the pilot items (the un-suffixed item is the live login
+# and is never touched) forces the binary back onto the file fallback, the
+# path verified by the 2026-08-29 headless probe.
+reseed_creds() {
+  local live
+  live="$(security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null)" \
+    || die "no live 'Claude Code-credentials' keychain item to copy"
+  printf '%s' "$live" | python3 -c '
+import json, sys, time
+c = json.load(sys.stdin)["claudeAiOauth"]
+exp = c["expiresAt"] / 1000
+left = exp - time.time()
+print(f"pilot-pair: live OAuth token expires {time.strftime('"'%Y-%m-%d %H:%M'"', time.localtime(exp))} ({left/3600:.1f}h from now)")
+sys.exit(0 if left > 0 else 1)
+' || die "live OAuth token is expired; run one turn in your normal claude to refresh it, then re-fire"
+  security dump-keychain 2>/dev/null \
+    | sed -n 's/.*"svce"<blob>="\(Claude Code-credentials-[^"]*\)".*/\1/p' | sort -u \
+    | while IFS= read -r svc; do
+        security delete-generic-password -s "$svc" >/dev/null 2>&1 || true
+      done
+  local cfg
+  for cfg in "$CFG_STOCK" "$CFG_VARIANT"; do
+    printf '%s\n' "$live" > "$cfg/.credentials.json"
+    chmod 600 "$cfg/.credentials.json"
+  done
+}
+
+# Between the two sides: clear any shared /tmp scratch the just-fired side staged
+# outside its own sandbox. A packet can Write into a shared dir (e.g. a review
+# packet that stages sub-agent prompts under /tmp/cp-review); the deny wall does
+# not cover /tmp, so those writes land, and left in place the second side could
+# read the first side's work. Remove exactly the /tmp roots this side wrote into -
+# /tmp only, never home, never the pilot's own sp-* dirs - so the next side starts
+# from the same clean slate the first one did.
+clean_shared_scratch() {
+  local roots d
+  roots="$(python3 - "$1" <<'PY'
+import json, sys
+roots = set()
+for line in open(sys.argv[1]):
+    line = line.strip()
+    if not line: continue
+    r = json.loads(line)
+    msg = r.get('message') or {}
+    for b in (msg.get('content') or []) if isinstance(msg.get('content'), list) else []:
+        if not (isinstance(b, dict) and b.get('type') == 'tool_use'): continue
+        if b.get('name') not in ('Write', 'Edit', 'NotebookEdit'): continue
+        fp = (b.get('input') or {}).get('file_path') or ''
+        for pre in ('/tmp/', '/private/tmp/'):
+            if fp.startswith(pre):
+                name = fp[len(pre):].split('/', 1)[0]
+                if name and not name.startswith('sp-'):
+                    roots.add(pre + name)
+for x in sorted(roots):
+    print(x)
+PY
+)"
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    echo "pilot-pair: clearing shared scratch between sides: $d" >&2
+    rm -rf "$d"
+  done <<< "$roots"
+}
+
 fire() {
   preflight "$1" "$2"
   mkdir -p "$OUT"
   if pair_done; then echo "pilot-pair: pair $2 already DONE, skipping (no re-spend)"; return 0; fi
+  reseed_creds
   local pkt="$ROOT/pilot/tasks/$2"
   fire_side stock   "$STOCK_BIN"   "$CFG_STOCK"   "$2" "$pkt"
+  clean_shared_scratch "$OUT/stock.jsonl"
   fire_side variant "$VARIANT_BIN" "$CFG_VARIANT" "$2" "$pkt"
   pair_done || die "fired but pair not DONE (missing capture file); inspect $OUT"
   echo "pilot-pair: pair $2 DONE -> $OUT"

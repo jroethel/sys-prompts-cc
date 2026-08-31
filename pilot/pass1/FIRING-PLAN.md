@@ -1,5 +1,9 @@
 # Pass 1 firing plan (quota-optimized)
 
+Status 2026-08-31: FIRING COMPLETE - all 13 pairs show `4/4 blinded` (`just pilot-status`).
+No further spend. Next is the human blind rating (stage 3, a day out) then the verdict; see the
+bottom of this file. The batch table below is retained for re-runs and pass 2.
+
 State lives on disk, not in any session: `just pilot-status` shows per-pair progress
 (4/4 + blinded = done), and every step below is resumable.
 No Claude session needs to stay open; `just pilot-batch` fires AND blinds each pair itself.
@@ -40,8 +44,18 @@ No `at`/launchd needed; the sleep lives in a persistent herdr pane.
 - Quota tripwire fired: that side's capture was dropped on purpose. Re-run the same
   `pilot-batch` command after reset - completed pairs and completed sides are skipped, never re-spent.
 - Any other failure: the failed side's pane stays open for inspection; completed work is preserved.
-- `WARNING ... wrote OUTSIDE its sandbox` on a Bash line: review it (reads false-positive by design);
-  Write/Edit outside the sandbox is hard-blocked by the deny wall since pair 2.
+- `agent_blocked` on an `agent prompt` line: the replayed agent opened an interactive dialog
+  (AskUserQuestion / permission prompt). Handled automatically since 2026-08-30 - esc dismisses it
+  ("User declined to answer") and the recorded turn is re-submitted. On an older script, re-run the batch.
+- `Not logged in · Please run /login` in a pane: the pilots' copied OAuth token expired (the live
+  client rotates the refresh token, so the copy cannot renew). Since 2026-08-30 every `--fire`
+  re-copies the live token and dies fast if it is already expired ("run one turn in your normal
+  claude to refresh it"); a mid-run logout is caught by an auth tripwire that drops the capture.
+- `WARNING ... wrote OUTSIDE its sandbox` on a Bash line: review it (reads false-positive by design).
+  The deny wall blocks Write/Edit under home paths but NOT under `/tmp`, so a packet that stages
+  scratch there (e.g. molt-cycle-brief4's `/tmp/cp-review`) writes successfully. `pilot-pair`
+  clears those `/tmp` roots between the two sides so the second side cannot read the first side's
+  work; the between-sides cleanup is the safeguard, not the deny wall.
 
 ## After all 13 show `4/4 blinded`
 
