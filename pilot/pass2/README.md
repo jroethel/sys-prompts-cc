@@ -9,7 +9,16 @@ This directory holds the pass-2 pairwise log and nothing else; it is created at 
 - Variant pane: the 2.1.241 default model, resolved from the pinned binary at pass-2 staging and recorded here before the first run fires.
   Resolve it with `scripts/pilot-blind.py`'s toolchain or whatever the RUNBOOK specifies, write the resolved ID below, and do not fire the pass until it is written.
 
-Resolved variant model ID (fill in at staging): `PENDING`
+Resolved variant model ID (fill in at staging): `claude-fable-5`
+
+Resolution basis (2026-09-02): acquired 2.1.241 via `scripts/acquire-binary.sh` (sha256 verified,
+`1495eb7c...820d`), extracted its cli.js with `scripts/extract-clijs.mjs`, and read the model
+registry: `best: "fable"`, `aliases.fable.default: "claude-fable-5"`, fable entitlement-gated.
+Jeremy's account is fable-entitled (daily settings.json defaults to claude-fable-5), so the
+2.1.241 default for this account resolves to `claude-fable-5`.
+Static resolution; the binary was never run, per the acquire discipline.
+Variant pane binary: `~/.local/share/claude-code-pilot/2.1.204-variant-fable5` (VARIANT_BIN
+override at fire time; the justfile default points at the pass-1 opus-4-8 build).
 
 ## pairwise.jsonl
 

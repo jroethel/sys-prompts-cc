@@ -160,8 +160,12 @@ PY
     sleep 1
   done
   [ -n "$ok" ] || die "pane $pane never became an idle claude agent (try: herdr agent explain $pane)"
-  local pout
+  local pout sub_ts turn_deadline remaining_ms
   while IFS= read -r -d '' turn; do
+    # Taken BEFORE the submit: the ground-truth check below looks for an
+    # assistant record newer than this.
+    sub_ts="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+    turn_deadline=$(( $(date +%s) + TURN_TIMEOUT / 1000 ))
     if ! pout="$(herdr agent prompt "$pane" "$turn" --wait --timeout "$TURN_TIMEOUT" 2>&1)"; then
       if grep -q agent_prompt_stalled <<<"$pout"; then
         # A trailing @-mention pops CC's file-picker after the bracketed paste
@@ -193,6 +197,22 @@ PY
       else
         die "agent prompt failed on $side: $pout"
       fi
+    fi
+    # Ground-truth completion check. `prompt --wait` matches "the first state
+    # observed after submission", and right after a submit the pane can still
+    # read stale idle, so the wait can return before the model starts
+    # (observed 2026-09-01: supervisor and molt variant sides captured half a
+    # second after the final turn's user record, zero output). The transcript
+    # is ground truth: hold until an assistant record newer than the submit
+    # exists, then let the state wait see the finish inside the same budget.
+    # A budget spent with no answer is the impatient-user interrupt working
+    # as designed: warn and continue, never die.
+    if await_answer "$cfg" "$sub_ts" "$turn_deadline"; then
+      remaining_ms=$(( (turn_deadline - $(date +%s)) * 1000 ))
+      [ "$remaining_ms" -gt 0 ] || remaining_ms=1000
+      herdr agent wait "$pane" --until idle --until done --timeout "$remaining_ms" >/dev/null 2>&1 || true
+    else
+      echo "pilot-pair: $side spent the turn budget with no answer (impatient-user interrupt), continuing" >&2
     fi
   done < <(parse_turns "$seed_pkt/prompt.md")
   local t
@@ -255,6 +275,31 @@ PY
   herdr pane close "$pane" >/dev/null 2>&1 || true
 }
 
+# await_answer <cfg> <submitted-at-iso> <deadline-epoch>: succeed once the
+# pane's newest transcript holds an assistant record newer than the submission,
+# fail when the deadline passes first. Polls the file, not herdr state.
+await_answer() {
+  local cfg="$1" sub_ts="$2" deadline="$3" t
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    t="$(ls -t "$cfg"/projects/*/*.jsonl 2>/dev/null | head -n1)" || true
+    if [ -n "$t" ] && python3 - "$t" "$sub_ts" <<'PY'
+import json, sys
+path, since = sys.argv[1], sys.argv[2]
+for line in open(path):
+    line = line.strip()
+    if not line: continue
+    try: r = json.loads(line)
+    except ValueError: continue
+    if r.get('type') == 'assistant' and (r.get('timestamp') or '') > since:
+        sys.exit(0)
+sys.exit(1)
+PY
+    then return 0; fi
+    sleep 5
+  done
+  return 1
+}
+
 # Re-copy the live OAuth token into both pilot config dirs before every fire.
 # The binary migrates .credentials.json into a per-config-dir keychain item on
 # first boot, and that copy dies when its access token expires: the refresh
@@ -263,18 +308,38 @@ PY
 # batch 3). Dropping the pilot items (the un-suffixed item is the live login
 # and is never touched) forces the binary back onto the file fallback, the
 # path verified by the 2026-08-29 headless probe.
-reseed_creds() {
-  local live
-  live="$(security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null)" \
-    || die "no live 'Claude Code-credentials' keychain item to copy"
-  printf '%s' "$live" | python3 -c '
+# token_fresh <credentials-json> <min-seconds-left>: report expiry, succeed only
+# if the access token has more than <min-seconds-left> remaining.
+token_fresh() {
+  printf '%s' "$1" | python3 -c '
 import json, sys, time
 c = json.load(sys.stdin)["claudeAiOauth"]
 exp = c["expiresAt"] / 1000
 left = exp - time.time()
-print(f"pilot-pair: live OAuth token expires {time.strftime('"'%Y-%m-%d %H:%M'"', time.localtime(exp))} ({left/3600:.1f}h from now)")
-sys.exit(0 if left > 0 else 1)
-' || die "live OAuth token is expired; run one turn in your normal claude to refresh it, then re-fire"
+ts = time.strftime('"'%Y-%m-%d %H:%M'"', time.localtime(exp))
+print(f"pilot-pair: live OAuth token expires {ts} ({left/3600:.1f}h from now)")
+sys.exit(0 if left > float(sys.argv[1]) else 1)
+' "$2"
+}
+
+reseed_creds() {
+  local live
+  live="$(security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null)" \
+    || die "no live 'Claude Code-credentials' keychain item to copy"
+  # Auto re-auth: the pilot copies can never refresh themselves (the live client
+  # holds the single-use refresh token), so when the live token is expired or
+  # within an hour of expiry, run one tiny turn in the live client - the same
+  # action the old die message asked the human for - which rotates and persists
+  # a fresh token into the live keychain item, then re-read it.
+  if ! token_fresh "$live" 3600; then
+    echo "pilot-pair: live OAuth token expired/expiring; refreshing with one live-client turn" >&2
+    DISABLE_AUTOUPDATER=1 claude --model claude-haiku-4-5-20251001 -p "ok" >/dev/null 2>&1 \
+      || die "live-client refresh turn failed; run one turn in your normal claude, then re-fire"
+    live="$(security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null)" \
+      || die "no live 'Claude Code-credentials' keychain item after refresh turn"
+    token_fresh "$live" 0 \
+      || die "live OAuth token still expired after refresh turn; run /login in your normal claude, then re-fire"
+  fi
   security dump-keychain 2>/dev/null \
     | sed -n 's/.*"svce"<blob>="\(Claude Code-credentials-[^"]*\)".*/\1/p' | sort -u \
     | while IFS= read -r svc; do
