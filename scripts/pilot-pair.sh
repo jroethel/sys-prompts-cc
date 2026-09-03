@@ -189,9 +189,18 @@ PY
         # user turn is then submitted. Both sides get identical treatment,
         # so every turn effectively has a 10-minute budget before the replay
         # interrupts like an impatient user.
-        herdr agent send-keys "$pane" esc >/dev/null
-        herdr agent wait "$pane" --until idle --until done --timeout 60000 >/dev/null \
-          || die "$side blocked and esc did not clear the dialog (herdr agent read $pane)"
+        # A deep-research spinner can outlive one esc + 60s (observed
+        # 2026-09-02, changelog stock: the workflow finished ~90s after the
+        # esc, but the single 60s wait had already killed the run). Retry the
+        # esc up to three times before giving up.
+        local unblocked="" attempt
+        for attempt in 1 2 3; do
+          herdr agent send-keys "$pane" esc >/dev/null
+          if herdr agent wait "$pane" --until idle --until done --timeout 60000 >/dev/null 2>&1; then
+            unblocked=1; break
+          fi
+        done
+        [ -n "$unblocked" ] || die "$side blocked and 3 esc attempts did not clear it (herdr agent read $pane)"
         herdr agent prompt "$pane" "$turn" --wait --timeout "$TURN_TIMEOUT" >/dev/null \
           || die "$side re-prompt after unblocking failed (herdr agent read $pane)"
       else
