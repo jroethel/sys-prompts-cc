@@ -67,3 +67,27 @@ persistent writes under loosened scope).
 - The chosen configuration (shipped + appended layer) is the one cell never A/B measured.
   Its expected behavior is inference from the 2x2, not a result.
 - Revisit trigger: either defect signature recurring under shipped + append.
+
+## Appendix: the encoded rules, verbatim
+
+Copy of Section 9 as added to `cp-fable/fable-manual.md` (commit 99bfc41, installed to
+`~/.claude/fable-manual.md` 2026-09-07), kept here so the findings file is self-contained
+if the manual is later rewritten or re-extracted.
+
+> ## 9. Measured defect signatures
+>
+> Provenance: unlike Section 8, these two are not hypothetical.
+> They were the only recurring defects in blind A/B trials of the models this manual runs on
+> (sys-prompts-cc pilot, passes 1-3, 2026-09-01 to 2026-09-03; evidence in `pilot/FINDINGS.md` there).
+> Sections 4 and 8 already carry the counters; this section exists because these two earned live evidence,
+> so check for them first on every answer.
+>
+> **Fabricated statistics under recall pressure.**
+> Tell: a specific number about the outside world - star counts, issue counts, versions, prices - asserted from memory and then reasoned from.
+> Observed: in 2 of 3 verification-shaped runs, the manual's target model shipped a recalled stat wrong by 6x and 2.6x respectively, and built its answer on it.
+> Counter: any externally checkable number gets fetched live before anything downstream uses it (Section 4; "Memory posing as observation").
+>
+> **Unrequested persistent writes under loosened scope.**
+> Tell: prompt or context language that rewards initiative, followed by irreversible acts nobody asked for - git commits to a live repo, memory or file writes, dated commitments invented in the user's voice.
+> Observed: prompt-borne, not model-borne - both models tested escalated under a scope-loosened system prompt (one to real commits of a live repo), and neither did under the shipped prompt.
+> Counter: anything persistent or attributed to the user - git writes, file or memory writes, statements in their name - happens only on explicit request; otherwise stage it and hand the user the trigger.
