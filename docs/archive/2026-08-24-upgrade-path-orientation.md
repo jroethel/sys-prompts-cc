@@ -48,3 +48,11 @@ The real blocker for the whole upgrade path is Task 5: curating the 12 pilot tas
 Read docs/handoffs/2026-08-24-upgrade-path-orientation.md first, then learning_guide.html (2026-08-24 Updates).
 The upgrade path is gated on curating the 12 pilot tasks (Task 5); #18 is parked behind Pass 1 and #19 is the parallel stock-diff track.
 Work the next action per the handoff unless I name one.
+
+## Transitions
+
+- 2026-09-08T02:37:54Z action 1 superseded - superseded by 2026-08-30-pass1-firing.md
+- 2026-09-08T02:37:54Z action 2 superseded - superseded by 2026-08-30-pass1-firing.md
+- 2026-09-08T02:37:54Z action 3 superseded - superseded by 2026-08-30-pass1-firing.md
+- 2026-09-08T02:37:54Z action 4 superseded - superseded by 2026-08-30-pass1-firing.md
+- 2026-09-08T02:37:54Z action 5 superseded - superseded by 2026-08-30-pass1-firing.md

@@ -50,3 +50,11 @@ Research findings: docs/research/ (swap-mechanics, diff-surface, measurement-met
 /wayfinder https://github.com/jroethel/sys-prompts-cc/issues/1
 Read docs/handoffs/2026-08-22-wayfinder-sp-charting.md first.
 Work the next frontier ticket per the handoff's recommended order unless I name one.
+
+## Transitions
+
+- 2026-09-08T02:37:54Z action 1 superseded - superseded by 2026-08-30-pass1-firing.md
+- 2026-09-08T02:37:54Z action 2 superseded - superseded by 2026-08-30-pass1-firing.md
+- 2026-09-08T02:37:54Z action 3 superseded - superseded by 2026-08-30-pass1-firing.md
+- 2026-09-08T02:37:54Z action 4 superseded - superseded by 2026-08-30-pass1-firing.md
+- 2026-09-08T02:37:54Z action 5 superseded - superseded by 2026-08-30-pass1-firing.md

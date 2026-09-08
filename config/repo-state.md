@@ -4,21 +4,29 @@ This file is the machine surface: the line-anchored keys and the Lanes table tha
 The tracker backend (github, gitlab, or local) is declared in the `tracker:` key below.
 Mode-invariant doctrine lives in the sibling `config/conventions.md`.
 
-template-version: 4
+template-version: 7
 
-Remote: 
+rubix-autorun values: ask (offer the optional Rubix review once) | off (skip silently) | on (run without asking); absent means ask.
+
+Remote: https://github.com/jroethel/sys-prompts-cc.git
+filename-grammar-since: 2026-09-08
+rubix-autorun: ask
 
 ## Lanes
 
-| Lane          | Home                      | How                                             |
-| ---           | ---                       | ---                                             |
-| Roadmap       | `ROADMAP.md`              | Living file; edit in place, no mirror.          |
-| Issues        | GitHub (open, no `idea`)  | `ISSUES.md` via `scripts/gen-mirrors.sh .`.     |
-| Backlog       | GitHub (label `idea`)     | `BACKLOG.md` via `scripts/gen-mirrors.sh .`.    |
-| Handoffs      | `docs/handoffs/`          | Per session; git fallback in conventions.md.    |
-| Chain state   | `docs/chain-state.md`     | Runtime, gitignored.                            |
-| Batch reviews | `docs/reviews/`           | Per review run.                                 |
-| Archive       | `docs/archive/`           | Moved work lands here.                          |
+| Lane          | Home                           | How                                            |
+| ---           | ---                            | ---                                            |
+| Roadmap       | `ROADMAP.md`                   | Living file; edit in place, no mirror.         |
+| Issues        | GitHub (open, no `idea`)       | `ISSUES.md` via `scripts/gen-mirrors.sh .`.    |
+| Backlog       | GitHub (label `idea`)          | `BACKLOG.md` via `scripts/gen-mirrors.sh .`.   |
+| Wayfinder     | GitHub (label `wayfinder:map`) | `WAYFINDER.md` via `scripts/gen-mirrors.sh .`. |
+| Handoffs      | `docs/handoffs/`               | Per session; git fallback in conventions.md.   |
+| Chain state   | `docs/chain-state.md`          | Runtime, gitignored.                           |
+| Batch reviews | `docs/reviews/`                | Per review run.                                |
+| Archive       | `docs/archive/`                | Moved work lands here.                         |
+| Sessions      | `docs/sessions/`               | One card per session; see conventions.md.      |
+
+Every session opens a session card before its first substantive action: scripts/session-card.sh open (doctrine: conventions.md, Session records).
 
 Backlog cross-repo view: `gh search issues --owner jroethel --label idea --state open`.
 Per-repo fallback when private-repo search is unavailable: `gh issue list --label idea --state open`.
@@ -26,5 +34,4 @@ Per-repo fallback when private-repo search is unavailable: `gh issue list --labe
 GitHub is the single source of truth.
 Mirrors are read-only snapshots whose headers disclose staleness.
 They regenerate at handoff time or on demand - no hooks, no daemons.
-
 tracker: github

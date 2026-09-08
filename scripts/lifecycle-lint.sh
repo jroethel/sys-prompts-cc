@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # lifecycle-lint - deterministic lifecycle reconciliation detector (no hooks, no daemons; run
-# on demand and at handoff time). Classes:
+# on demand, before declaring work done (conventions.md rule 6), and at handoff time). Classes:
 #   a  superseded+unlinked plan-set: a live docs/plans/*-plan{,_loop}.md whose date is older
 #      than the newest live plan-set, not archived, and referenced by no OPEN issue
 #   b  orphaned brief: a live docs/briefs/*-brief.md whose plan already sits in docs/archive/
@@ -9,8 +9,16 @@
 #   d  a CLOSED issue referenced by a LIVE plan (local backend only: tracker.sh list exposes
 #      open issues only, so closed issues are enumerable just by scanning docs/issues/*.md)
 #   e  every backticked in-repo pointer in config/context-map.md's index resolves (test -e)
-# Classes a (supersession half) and b are pure filesystem and always run. The issue-link
-# checks query the tracker seam and run only when `tracker.sh mode get` succeeds; absent a
+#   f  filename grammar: a lane doc dated on/after filename-grammar-since: whose name does not
+#      match <date>.<tokens>.<slug>.md
+#   g  roadmap R-tag defect: a duplicate or malformed [R...] tag in ROADMAP.md (absence is
+#      never flagged)
+#   h  consumed-unarchived handoff: every action in ## Next actions carries a disposition but
+#      the file still sits in docs/handoffs/; gated by lifecycle-lint-since:
+# Class f runs only when filename-grammar-since: exists in config/repo-state.md; class g runs
+# whenever ROADMAP.md exists. Classes a (supersession half) and b are pure filesystem and
+# always run. The issue-link checks query the tracker seam and run only when `tracker.sh mode
+# get` succeeds; absent a
 # declared mode they are skipped silently, so the lint works in a bare repo with no backend.
 # Remote backends match issue titles only (tracker.sh list does not expose bodies); local
 # matches title and body. This script only DETECTS - the archive/close action is BATCH-class
@@ -33,15 +41,26 @@ shopt -s nullglob
 found=0
 lint() { printf 'LINT %s %s: %s\n' "$1" "$2" "$3"; found=1; }
 
-# stem_of <basename>: prints the topic stem of YYYY-MM-DD-<stem>-{brief,plan,plan_loop}.md;
-# returns 1 for undated or foreign filenames, which never participate in lifecycle checks
+# stem_of <basename>: prints the topic stem of a dated doc filename, dash or dot grammar;
+# dot names have their leading [BIRW]<n> token segments stripped before the stem. Returns 1 for
+# undated or foreign filenames, which never participate in lifecycle checks.
 stem_of() {
   local s="$1"; s="${s%.md}"
   case "$s" in
-    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*) ;;
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].*)
+      s="${s:11}"                                # dot grammar: strip date + '.'
+      while :; do                                # drop leading [BIRW]<n> token segments
+        case "$s" in
+          [BIRW][0-9]*.*) s="${s#*.}" ;;
+          *) break ;;
+        esac
+      done
+      ;;
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*)  # legacy dash grammar, unchanged
+      s="${s:11}"
+      ;;
     *) return 1 ;;
   esac
-  s="${s:11}"
   case "$s" in
     *-plan_loop) s="${s%-plan_loop}" ;;
     *-plan)      s="${s%-plan}" ;;
@@ -185,6 +204,62 @@ if [ -f "$MAP" ]; then
     p="${tok%%:*}"               # drop any :line-range suffix
     [ -e "$p" ] || lint e "$MAP" "in-repo pointer '$tok' does not resolve"
   done < <(sed -n '/^## The index/,$p' "$MAP" | grep -oE '`[^`]+`' | sed 's/`//g')
+fi
+
+# (f) filename grammar - runs only when the adopting key is present (same absence-skips pattern
+# as the tracker mode): docs in the four lanes dated on/after the key's date must match
+# <date>.<tokens>.<slug>.md; older docs are exempt; lanes outside the four are never scanned,
+# and the non-recursive *.md glob keeps subdirs like docs/reviews/unit-logs/ out of the scan.
+# Reads the key with the existing fm() helper near the top of this script; no new helper.
+SINCE=""
+[ -f config/repo-state.md ] && SINCE="$(fm config/repo-state.md filename-grammar-since)"
+if [ -n "$SINCE" ]; then
+  for lane in docs/briefs docs/plans docs/handoffs docs/reviews; do
+    for f in "$lane"/*.md; do
+      [ -e "$f" ] || continue
+      b="$(basename "$f")"
+      d="$(date_of "$b")"
+      case "$d" in
+        [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+        *) continue ;;                          # undated names never participate
+      esac
+      [[ "$d" < "$SINCE" ]] && continue         # grandfathered (ISO dates compare lexically)
+      printf '%s\n' "$b" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}(\.[BIRW][0-9]+)*\.[a-z0-9-]+(_loop)?\.md$' \
+        || lint f "$f" "filename does not match <date>.<tokens>.<slug>.md (grammar since $SINCE)"
+    done
+  done
+fi
+
+# (g) roadmap R-tags - unique well-formed tags, malformed [R...] groups flagged, absence never.
+if [ -f ROADMAP.md ] && [ -n "$(grep -oE '\[R[^]]*\]' ROADMAP.md 2>/dev/null)" ]; then
+  gfindings="$(grep -oE '\[R[^]]*\]' ROADMAP.md | awk '
+    { if ($0 ~ /^\[R[0-9]+\]$/) seen[$0]++
+      else print "malformed\t" $0 }
+    END { for (t in seen) if (seen[t] > 1) print "duplicate\t" t }
+  ')"
+  while IFS=$'\t' read -r kind t; do
+    [ -n "$t" ] || continue
+    lint g ROADMAP.md "$kind R-tag '$t'"
+  done <<< "$gfindings"
+fi
+
+# (h) consumed but unarchived handoff - runs only when the adopting key is present (same
+# absence-skips pattern as class f). Handoffs dated before lifecycle-lint-since: are grandfathered.
+# The derivation has one home: handoff-log.sh state, called script-relative like TRACKER above.
+HSINCE=""
+[ -f config/repo-state.md ] && HSINCE="$(fm config/repo-state.md lifecycle-lint-since)"
+if [ -n "$HSINCE" ] && [ -x "$SCRIPT_DIR/handoff-log.sh" ]; then
+  for f in docs/handoffs/*.md; do
+    [ -e "$f" ] || continue
+    d="$(date_of "$(basename "$f")")"
+    case "$d" in
+      [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+      *) continue ;;
+    esac
+    [[ "$d" < "$HSINCE" ]] && continue
+    [ "$("$SCRIPT_DIR/handoff-log.sh" state "$f")" = consumed-unarchived ] || continue
+    lint h "$f" "every action carries a disposition but the handoff is still live (archive it; lifecycle since $HSINCE)"
+  done
 fi
 
 exit "$found"

@@ -114,6 +114,7 @@ local_create() {              # args: label title body -> prints number
   } > "$file"
   echo "note: ISSUES.md/BACKLOG.md now stale - run scripts/gen-mirrors.sh ." >&2  # reminder only; no auto-regen
   printf '%s\n' "$num"
+  echo 'tracker: docs for this item should gain its token (.I<n> or .B<n>) in their filename' >&2
 }
 local_set_state() {           # args: number newstate ; rewrites state: and updated: only inside the first frontmatter block
   local f tmp now; f="$(find_issue_file "$1")" || fail "no local issue #$1"
@@ -173,6 +174,30 @@ local_list() {                # emit gh-shaped JSON for open issues
   for f in "$ISSUE_DIR"/*.md; do
     state="$(fm "$f" state)"; [ "$state" = "open" ] || continue
     num="$(fm "$f" number)"; title="$(fm "$f" title)"; upd="$(fm "$f" updated)"
+    labels_raw="$(fm "$f" labels)"
+    labels_json=""
+    if [ -n "$labels_raw" ]; then   # guard: iterating an empty array under set -u aborts on bash 3.2 (macOS)
+      IFS=',' read -ra _larr <<< "$labels_raw"
+      for l in "${_larr[@]}"; do
+        l="$(printf '%s' "$l" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+        [ -n "$l" ] || continue
+        [ -n "$labels_json" ] && labels_json="$labels_json,"
+        labels_json="$labels_json{\"name\":\"$(json_escape "$l")\"}"
+      done
+    fi
+    [ "$first" -eq 1 ] || out="$out,"; first=0
+    out="$out{\"number\":$num,\"title\":\"$(json_escape "$title")\",\"labels\":[$labels_json],\"updatedAt\":\"$(json_escape "$upd")\"}"
+  done
+  printf '%s]\n' "$out"
+}
+local_list_closed() {          # arg: cutoff YYYY-MM-DD - mirror local_list for closed issues on/after it
+  local cutoff="$1" first=1 out="[" f state num title upd labels_raw labels_json l
+  shopt -s nullglob
+  for f in "$ISSUE_DIR"/*.md; do
+    state="$(fm "$f" state)"; [ "$state" = "closed" ] || continue
+    upd="$(fm "$f" updated)"
+    [ "$upd" \< "$cutoff" ] && continue   # lexical: an ISO stamp on/after the date clears its own prefix
+    num="$(fm "$f" number)"; title="$(fm "$f" title)"
     labels_raw="$(fm "$f" labels)"
     labels_json=""
     if [ -n "$labels_raw" ]; then   # guard: iterating an empty array under set -u aborts on bash 3.2 (macOS)
@@ -273,6 +298,19 @@ do_list() {                   # the list verb's backend dispatch; next-eligible 
     github) gh_guard; gh issue list --state open --limit 1000 --json number,title,labels,updatedAt ;;
     gitlab) glab_guard; gitlab_list ;;
     local)  local_list ;;
+    *)      fail "unknown tracker mode '$mode' in $RS (expected github, gitlab, or local)" ;;
+  esac
+}
+do_list_closed() {             # arg: cutoff YYYY-MM-DD - issues closed on or after it, for the done lane
+  local cutoff="$1" mode
+  mode="$(tracker_mode_get)" || fail "no tracker mode declared in $RS (run loop-setup)"
+  case "$mode" in
+    github) gh_guard
+            gh issue list --state closed --search "closed:>=$cutoff" --limit 200 \
+              --json number,title,labels,updatedAt ;;
+    gitlab) echo "list-closed: not supported on the gitlab backend" >&2
+            printf '[]\n' ;;
+    local)  local_list_closed "$cutoff" ;;
     *)      fail "unknown tracker mode '$mode' in $RS (expected github, gitlab, or local)" ;;
   esac
 }
@@ -388,6 +426,7 @@ Usage: tracker.sh <command> [args]
   host                           print the GitLab host derived from origin
   group                          print the first path segment of origin (the backlog group)
   list                           print a gh-shaped issue-JSON array for open issues
+  list-closed <YYYY-MM-DD>    print a gh-shaped issue-JSON array for issues closed on or after the date
   children <num>                 print a gh-shaped sub-issue-JSON array for a wayfinder map's children (github only)
   create --label L --title T --body B   create an issue, print its number
   close <num>                    close an issue by number (human-only; agents complete via 'done')
@@ -400,9 +439,14 @@ Usage: tracker.sh <command> [args]
   claim <num> <session-id> [--reclaim]  receipt-before-flip claim; prints owner id, exit 4 on race
   done <num> --receipt <text> [--ran <cmd>]  evidence-gated completion: agent:done + close
   next-eligible [<session-id>]    select at most one actionable ticket (stale working, else unblocked todo)
+
+Examples:
+  tracker.sh create --label "" --title "Title" --body "Body"      new issue
+  tracker.sh create --label idea --title "Title" --body "Body"    new idea (Backlog lane)
 EOF
 }
 
+case "${1:-}" in -h|--help) usage 2>&1; exit 0 ;; esac
 [ $# -ge 1 ] || { usage; exit 1; }
 sub="$1"; shift
 case "$sub" in
@@ -417,6 +461,10 @@ case "$sub" in
     ;;
   list)
     do_list
+    ;;
+  list-closed)
+    [ $# -eq 1 ] || { usage; exit 2; }
+    do_list_closed "$1"
     ;;
   children)
     [ $# -eq 1 ] || fail "children: requires <num>"
@@ -441,6 +489,7 @@ case "$sub" in
         [ -n "$label" ] && args+=(--label "$label")
         url="$(gh "${args[@]}")" || fail "gh issue create failed"
         printf '%s\n' "${url##*/}"
+        echo 'tracker: docs for this item should gain its token (.I<n> or .B<n>) in their filename' >&2
         ;;
       gitlab)
         glab_guard
@@ -450,6 +499,7 @@ case "$sub" in
         iid="$(printf '%s' "$out" | grep -oE '/issues/[0-9]+' | tail -1 | sed 's#.*/##')"
         [ -n "$iid" ] || fail "glab issue create returned no parseable issue URL"
         printf '%s\n' "$iid"
+        echo 'tracker: docs for this item should gain its token (.I<n> or .B<n>) in their filename' >&2
         ;;
       local)
         local_create "$label" "$title" "$body"
