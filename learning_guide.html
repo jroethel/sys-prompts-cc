@@ -214,5 +214,121 @@ pre.diagram { background: #f0eee6; border: 1px solid var(--line); border-radius:
 </section>
 
 <footer>Updated from the 2026-08-24 upgrade-path orientation session (Claude Opus 4.8 + Jeremy). This session parked #18, filed #19 (stock-vs-stock upgrade digest), and clarified the Pass 1 / Pass 2 / molt boundaries. The molt report and 2.1.241 provenance remain regenerated-but-uncommitted in the working tree. Companion docs live in docs/research/measurement-methodology.md (Section 7 lobotomized claims), docs/briefs/2026-08-22-sp-metrics-benchmarks-brief.md, pilot/tasks/README.md (curation), and the wayfinder map at GitHub issue #1.</footer>
+
+<h2>Updates - 2026-09-07 global launcher justfile session: how the setup works</h2>
+<section class="card">
+<pre class="diagram">
+ interactive shell (~/.zshrc sources ~/.zsh.d/*.zsh)
+        |
+   alias jr='just -g'          non-interactive shells never source ~/.zshrc,
+        |                      so scripts always see the real binaries
+        v
+ ~/.config/just/justfile   (the -g global justfile, runnable from any cwd)
+        |
+        +-- bare launchers: cc, pi, cdx
+        |     direct #!/usr/bin/env bash recipes ending in  exec &lt;binary&gt; ... "$@"
+        |     real flags pass through intact:  jr cc --resume abc123
+        |
+        +-- 12 role combos: {cc,pi,cdx}-{content,design,writing,code}
+              one-liners forwarding to a core:  cc-content *args: (_claude "content" args)
+              the variadic collapses to ONE word, so combos carry prose prompts only
+        |
+        v
+   cores _claude / _pi / _codex   (one per program, holding its injection quirk)
+     _claude: claude --dangerously-skip-permissions --append-system-prompt-file &lt;stub&gt;
+     _pi:     pi --append-system-prompt &lt;stub path&gt;        (pi has no skip-perms flag)
+     _codex:  bash core cats the stub into the prompt text  (option c, no config key)
+        |
+        v
+   ~/.config/jjr/prompts/{content,design,writing,code}.md   (role stubs, inert markers
+   until real prompts are authored - jr cc-content is jr cc plus a marker line today)
+
+ management:  ~/.config/just/launcher.py  status | tool add/remove | stub add/remove
+   parses the justfile as the single source of truth (no registry of its own),
+   validates every edit with `just --list`, and rolls back if parsing breaks
+</pre>
+<dl>
+<dt>The whole launcher moves as one unit.</dt>
+<dd>Everything lives under <code>$HOME</code> with no absolute paths beyond it: <code>~/.config/just/justfile</code>, <code>~/.config/just/launcher.py</code>, <code>~/.config/jjr/prompts/</code>, and <code>~/.zsh.d/just.zsh</code>. Designed for the parked dotfiles-repo move.</dd>
+<dt>Two recipe shapes exist on purpose; do not unify them.</dt>
+<dd>just's dependency-argument passing collapses a variadic into a single string, so a forwarded recipe structurally cannot deliver <code>--resume abc123</code> as two arguments. Bare launchers are therefore direct shebang recipes with a real <code>"$@"</code>; combos forward and carry one quoted prose prompt. Verified on just 1.58.0.</dd>
+<dd class="why">Rubix high finding, 2026-09-07: the draft's 15-recipes-over-3-cores design would have silently sent a resume session id to the model as prose - the worst failure given how often quota kills sessions.</dd>
+<dt>The codex core is the fallback body; the append-vs-replace question is still open.</dt>
+<dd>The probe never reached a model turn: the host's stored codex key returns 401 Unauthorized. Option (c) (cat the stub into the prompt) needs no config key, so it went live, with the truthful verdict recorded as a comment in the justfile (line 32). The retry is staged in the 2026-09-07 batch-review journal; after <code>codex login</code>, an APPEND verdict means swapping <code>_codex</code> to the option (a) <code>model_instructions_file</code> body.</dd>
+</dl>
+</section>
+
+<h2>Updates - learnings (2026-09-07)</h2>
+<section class="card">
+<dl>
+<dt>The alias is jr, not jq - the remembered "jq" name collided with the real JSON tool.</dt>
+<dd>Jeremy caught that <code>jq</code> is <code>/usr/local/bin/jq</code>. The overlap fails dirty, not clean: <code>just -c</code> runs an arbitrary command and <code>just -e</code> opens an editor, so a reflexive <code>jq -e '.x' file.json</code> would do something other than error. Renaming beat shadowing-with-escape-hatches.</dd>
+<dt>"zsh aliases do not expand in scripts" was asserted, reviewed, and found false.</dt>
+<dd>The real containment is that non-interactive zsh never sources <code>~/.zshrc</code>. The draft plan justified the jq collision with the false version; the rubix pass corrected it, and the jr rename later made the whole question moot.</dd>
+<dd class="why">A near-miss worth keeping: a comforting mechanism claim survived until someone tested it, and the true mechanism had different edge cases.</dd>
+<dt>grep -Ec counts matching lines, not occurrences, and <code>[0-9]+ fail</code> matches "0 fail".</dt>
+<dd>The draft plan's zero-spend verification gate returned 1 in every case and could never discriminate pass from fail. Replaced with numeric extraction.</dd>
+<dd class="why">Rubix critical finding, 2026-09-07. A verification gate that always passes is worse than no gate.</dd>
+<dt>A smoke check that asks a session to echo its injected instructions can be refused as injection-probing.</dt>
+<dd>claude refused the plan's marker-echo phrasing twice while the refusal itself quoted the stub file, proving injection worked. The check phrasing was the bug, not the plumbing; one reworded probe passed.</dd>
+<dt>A review finding that contradicts a decision the brief settles in writing gets its documentation half only.</dt>
+<dd>Both rubix lenses independently wanted the skip-permissions default inverted. The brief says "skip-permissions flags are baked in", so the executor folded in blast-radius documentation and warning comments, left the default alone, and logged the reasoning.</dd>
+<dt>argparse rejects dash-leading option values in space form; require the = form.</dt>
+<dd><code>launcher.py tool add ... --prompt-flag --system-prompt-file</code> fails ("expected one argument"); <code>--prompt-flag=--system-prompt-file</code> works. Documented in the script's help, since prompt flags always start with a dash.</dd>
+<dt>launcher.py's stub remove refuses to delete authored prompts without --force.</dt>
+<dd>A file still containing <code>ROLE-STUB-MARKER</code> or the placeholder comment deletes freely; anything else is treated as authored content. The one guard kept, because roles will eventually hold real prompts and <code>stub remove design</code> nuking one is data loss.</dd>
+</dl>
+</section>
+
+<h2>Updates - key decisions register (2026-09-07)</h2>
+<section class="card">
+<table>
+<tr><th>Decision</th><th>Alternatives considered</th><th>Why</th></tr>
+<tr><td>Shell alias renamed to <code>jr</code></td>
+    <td>Keep <code>jq</code> and reach the JSON tool via <code>\jq</code> / <code>command jq</code></td>
+    <td>The flag overlap (-c, -e, -f, -s, -n) fails dirty at an interactive prompt; <code>jr</code> was free on the host (verified with <code>type jr</code>).</td></tr>
+<tr><td>launcher.py parses the justfile as its single source of truth</td>
+    <td>Script-owned registry or config file; full justfile regeneration from a template</td>
+    <td>No second state to drift, and hand-tuned recipe bodies (the codex bash core, warning comments) survive edits untouched.</td></tr>
+<tr><td>Every launcher.py justfile edit is validated by <code>just --list</code> and rolled back on failure</td>
+    <td>Write and hope; unit tests on the parser</td>
+    <td>just itself is the only authority on whether the file still parses; one subprocess call, zero test scaffolding.</td></tr>
+<tr><td><code>tool add</code> generates only the path-flag injection style</td>
+    <td>Support codex-style cat-into-arg cores via templates</td>
+    <td>claude and pi shaped tools cover the common case; a codex-shaped core is hand-written once and the script manages it fine afterward. Deliberate ceiling.</td></tr>
+<tr><td>Bare launchers are shebang recipes; role combos forward to cores</td>
+    <td>All 15 recipes forwarded through cores (the draft design)</td>
+    <td>Forwarding collapses variadics, breaking flag pass-through; see the learnings entry. The split preserves <code>jr cc --resume &lt;id&gt;</code>.</td></tr>
+<tr><td>Skip-permissions flags stay baked in for claude and codex</td>
+    <td>Invert to safe-by-default with -danger variants (both rubix lenses wanted this)</td>
+    <td>The brief settles it in writing; a review finding does not overturn a written user decision. Warning comments and blast-radius notes were folded in instead.</td></tr>
+</table>
+</section>
+
+<h2>Updates - user preferences (2026-09-07)</h2>
+<section class="card">
+<dl>
+<dt>An explicit instruction that overrides a standing rule means execute, not re-flag.</dt>
+<dd>The loop-stack CLAUDE.md block says Fable is never spawned as a worker; Jeremy wrote "launch a fable 5 agent (MUST LAUNCH, YOU DO NOT COUNT)" and the right move was to spawn it without offering a veto. Matches the standing memory note.</dd>
+<dt>Auto mode means decisions logged, not decisions skipped.</dt>
+<dd>The chain ran with <code>/loop-auto set auto</code>, every gate journaled in docs/reviews/2026-09-07.global-launcher-justfile-batch-review.md (15 entries), review findings accepted wholesale, and the one human trigger (codex login and probe) staged rather than fired.</dd>
+<dt>Utility scripts: one file, stdlib only, self-checking.</dt>
+<dd>launcher.py is a single executable python3 file with argparse, no dependencies, and its own validate-and-rollback on every write. Checks were run as round trips against the live justfile, diffed byte-identical afterward.</dd>
+</dl>
+</section>
+
+<h2>Updates - operational learnings (2026-09-07)</h2>
+<section class="card">
+<dl>
+<dt>What is live in HOME as of 2026-09-07.</dt>
+<dd><code>~/.config/just/justfile</code> (16 recipes), <code>~/.config/just/launcher.py</code>, <code>~/.zsh.d/just.zsh</code> (the jr alias), and four inert stubs in <code>~/.config/jjr/prompts/</code>. Smoke-verified: pi and claude sessions each echoed their stub's marker line; codex is deferred on the 401 key.</dd>
+<dt>What is not done.</dt>
+<dd>Real role prompt content (all four stubs are markers), the codex append-vs-replace probe (Jeremy's trigger, staged in the batch-review journal), and the dotfiles-repo move (parked in the brief). The plan and journal in docs/ remain uncommitted; the wave receipts commit <code>cf2a239</code> landed in ~/repos/ringer/docs/MODEL-NOTES.md per the loop-drive gate ritual.</dd>
+<dt>Spend for the whole chain: four short paid turns.</dt>
+<dd>Two claude smoke turns, one pi smoke turn, one reworded claude retry; every codex attempt died free at 401 before a model turn. Everything else was dry runs and local commands.</dd>
+</dl>
+</section>
+
+<footer>Updated from the 2026-09-07 global launcher justfile session (Claude Fable 5 orchestrating, Claude Opus 5 planning via /loop-plan, Claude Fable 5 driving via /loop-drive, + Jeremy). This session shipped the launcher end to end, renamed the alias to jr, and added launcher.py. Companion docs live in docs/briefs/2026-09-07.global-launcher-justfile-brief.md, docs/plans/2026-09-07.global-launcher-justfile-plan.md, and docs/reviews/2026-09-07.global-launcher-justfile-batch-review.md.</footer>
 </body>
 </html>
